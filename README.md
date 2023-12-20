@@ -16,5 +16,5 @@ conda activate context-aware-flow-matching
 
 Verify your install by running pytest:
 ```bash
-pytest
+pytest -m "not slow"
 ```
