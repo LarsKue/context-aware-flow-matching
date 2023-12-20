@@ -25,8 +25,8 @@ class ModelHParams(TrainableHParams):
 class Model(Trainable):
     hparams: ModelHParams
 
-    def __init__(self, hparams):
-        super().__init__(hparams)
+    def __init__(self, hparams, *datasets):
+        super().__init__(hparams, *datasets)
 
         self.encoder = nn.Sequential(
             nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
