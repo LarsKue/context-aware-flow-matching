@@ -4,13 +4,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch import Tensor
+from torch.utils.data import DataLoader
 
 from lightning_trainable import Trainable, TrainableHParams
 
-from . import pools
-
 import src.losses as L
 import src.utils as U
+
+from src.dataloaders import FlowMatchingDataLoader
+
+from . import pools
 
 
 class ModelHParams(TrainableHParams):
@@ -20,6 +23,8 @@ class ModelHParams(TrainableHParams):
 
 
 class Model(Trainable):
+    hparams: ModelHParams
+
     def __init__(self, hparams):
         super().__init__(hparams)
 
@@ -71,7 +76,7 @@ class Model(Trainable):
 
         return self.flow(xtc)
 
-    def training_step(self, batch, batch_idx):
+    def compute_metrics(self, batch, batch_idx):
         xt, x0, x1, t, vstar = batch
 
         batch_size, set_size, *_ = x0.shape
@@ -98,3 +103,20 @@ class Model(Trainable):
             mse=mse,
             mmd=mmd,
         )
+
+    def _convert_dataloader(self, dataloader: DataLoader) -> DataLoader:
+        # we don't want to rewrite all the customizing logic, so just cast to our custom class
+        # this works, because the class is a subclass of DataLoader and does not introduce any new
+        # attributes or methods
+        dataloader.__class__ = FlowMatchingDataLoader
+
+        return dataloader
+
+    def train_dataloader(self) -> DataLoader | list[DataLoader]:
+        return self._convert_dataloader(super().train_dataloader())
+
+    def val_dataloader(self) -> DataLoader | list[DataLoader]:
+        return self._convert_dataloader(super().val_dataloader())
+
+    def test_dataloader(self) -> DataLoader | list[DataLoader]:
+        return self._convert_dataloader(super().test_dataloader())
