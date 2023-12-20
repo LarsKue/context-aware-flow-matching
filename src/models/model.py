@@ -1,25 +1,30 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from torch import Tensor
 
+from lightning_trainable import Trainable, TrainableHParams
+
 from . import pools
 
+import src.losses as L
+import src.utils as U
 
-class Model(nn.Module):
-    def __init__(self):
-        super().__init__()
 
-        # 3d point clouds
-        features = 3
-        # time
-        conditions = 1
-        # encoder latent space
-        embeddings = 256
+class ModelHParams(TrainableHParams):
+    features: int = 3
+    conditions: int = 1
+    embeddings: int = 256
+
+
+class Model(Trainable):
+    def __init__(self, hparams):
+        super().__init__(hparams)
 
         self.encoder = nn.Sequential(
-            nn.Sequential(nn.Linear(features, 64), nn.ReLU()),
+            nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
             *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
             pools.TopK(k=512, dim=1),
             nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
@@ -29,12 +34,12 @@ class Model(nn.Module):
             *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(16)],
             pools.Mean(dim=1),
             *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(8)],
-            nn.Linear(1024, embeddings),
+            nn.Linear(1024, self.hparams.embeddings),
         )
 
         # diamond shape flow matching model
         self.flow = nn.Sequential(
-            nn.Sequential(nn.Linear(features + conditions + embeddings, 64), nn.ReLU()),
+            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 64), nn.ReLU()),
             *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
             nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
             *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
@@ -44,7 +49,7 @@ class Model(nn.Module):
             *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
             nn.Sequential(nn.Linear(256, 64), nn.ReLU()),
             *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
-            nn.Sequential(nn.Linear(64, 3)),
+            nn.Sequential(nn.Linear(64, self.hparams.features)),
         )
 
         # initialize as random projection
@@ -66,28 +71,30 @@ class Model(nn.Module):
 
         return self.flow(xtc)
 
-
-
     def training_step(self, batch, batch_idx):
-        xtc, vstar = batch
+        xt, x0, x1, t, vstar = batch
 
-        v = self.flow(xtc)
-
-        mse = F.mse_loss(v, vstar)
-
-        return dict(
-            loss=mse,
-            mse=mse,
-        )
-
-        x0, x1 = batch
         batch_size, set_size, *_ = x0.shape
 
-        t = torch.rand(batch_size, device=self.device)
-        xt = t * x1 + (1 - t) * x0
+        c = self.encoder(x0)
+        c = U.expand_dim(c, 1, set_size)
 
-        embedding = self.encoder(x0)
+        mmd = L.mmd_loss(c, torch.randn_like(c), reduction="none")
 
-        xtc = torch.cat([xt, t, embedding], dim=2)
+        xtc = torch.cat([xt, t, c], dim=2)
+        v = self.flow(xtc)
 
-        velocity = self.flow(xtc)
+        mse = F.mse_loss(v, vstar, reduction="none")
+
+        loss = mse + mmd
+
+        # do this last for autograd
+        mse = mse.mean(0)
+        mmd = mmd.mean(0)
+        loss = loss.mean(0)
+
+        return dict(
+            loss=loss,
+            mse=mse,
+            mmd=mmd,
+        )
