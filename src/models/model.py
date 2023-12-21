@@ -40,7 +40,7 @@ class Model(Trainable):
             pools.Mean(dim=1),
             nn.Flatten(),
             *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(8)],
-            nn.Linear(1024, self.hparams.embeddings),
+            nn.Sequential(nn.Linear(1024, self.hparams.embeddings)),
         )
 
         # diamond shape flow matching model
