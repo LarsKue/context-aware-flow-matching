@@ -34,3 +34,19 @@ def unsqueeze_right(x: Tensor, k: int) -> Tensor:
     unsqueeze = [slice(None)] * x.dim()
     unsqueeze += [None] * k
     return x[unsqueeze]
+
+
+def mean_except(x: Tensor, dim: int) -> Tensor:
+    """
+    Take the mean of x over all dimensions except dim
+
+    Example:
+        >>> x = torch.randn(3, 4, 5)
+        >>> x.shape
+        torch.Size([3, 4, 5])
+        >>> mean_except(x, 0).shape
+        torch.Size([3])
+    """
+    dims = list(range(x.dim()))
+    dims.remove(dim)
+    return x.mean(dims)
