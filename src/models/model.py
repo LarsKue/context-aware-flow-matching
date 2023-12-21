@@ -61,15 +61,13 @@ class Model(Trainable):
         # initialize as random projection
         for layer in self.encoder.modules():
             if isinstance(layer, nn.Linear):
-                print("Initialising linear layer in encoder")
-                nn.init.xavier_uniform_(layer.weight)
+                nn.init.xavier_normal_(layer.weight)
                 nn.init.zeros_(layer.bias)
 
         # initialize as random drift
         for layer in self.flow.modules():
             if isinstance(layer, nn.Linear):
-                print("Initialising linear layer in flow")
-                nn.init.xavier_uniform_(layer.weight)
+                nn.init.xavier_normal_(layer.weight)
                 nn.init.zeros_(layer.bias)
 
     def velocity(self, x: Tensor, t: Tensor, c: Tensor) -> Tensor:
