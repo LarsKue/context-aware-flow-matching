@@ -10,18 +10,21 @@ import src.utils as U
 
 class FlowMatchingDataLoader(DataLoader):
     def __iter__(self):
-        return OTCoupledIterator(self)
+        return OTCoupledIterator(super().__iter__())
 
 
 class OTCoupledIterator:
-    def __init__(self, dataloader):
-        self.dataloader = dataloader
+    def __init__(self, inner):
+        self.inner = inner
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        x1 = next(self.dataloader)
+        x1 = next(self.inner)
+
+        # batch norm
+        x1 = (x1 - x1.mean(dim=0)) / x1.std(dim=0)
 
         batch_size = x1.size(0)
 
@@ -31,7 +34,7 @@ class OTCoupledIterator:
         perm = torch.multinomial(pi, num_samples=1).squeeze(1)
         x1 = x1[perm]
 
-        t = x1.new_rand(batch_size)
+        t = torch.rand(batch_size, device=x1.device)
         t_expanded = U.unsqueeze_right(t, x1.dim() - 1).expand_as(x1)
 
         xt = t_expanded * x1 + (1 - t_expanded) * x0
