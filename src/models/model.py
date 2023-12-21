@@ -21,6 +21,8 @@ class ModelHParams(TrainableHParams):
     conditions: int = 1
     embeddings: int = 256
 
+    gamma: float = 0.5
+
 
 class Model(Trainable):
     hparams: ModelHParams
