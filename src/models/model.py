@@ -81,26 +81,28 @@ class Model(Trainable):
         batch_size, set_size, *_ = x0.shape
 
         c = self.encoder(x0)
-        c = U.expand_dim(c, 1, set_size)
 
         mmd = L.mmd_loss(c, torch.randn_like(c), reduction="none")
+        mmd_mean = mmd.mean(0)
+
+        c = c.unsqueeze(1)
+        c = U.expand_dim(c, 1, set_size)
+        t = U.unsqueeze_right(t, xt.dim() - 1)
+        t = U.expand_dim(t, 1, set_size)
 
         xtc = torch.cat([xt, t, c], dim=2)
         v = self.flow(xtc)
 
-        mse = F.mse_loss(v, vstar, reduction="none")
+        mse = U.mean_except(torch.square(v - vstar), 0)
+        mse_mean = mse.mean(0)
 
-        loss = mse + mmd
-
-        # do this last for autograd
-        mse = mse.mean(0)
-        mmd = mmd.mean(0)
-        loss = loss.mean(0)
+        loss = self.hparams.gamma * mmd + (1 - self.hparams.gamma) * mse
+        loss_mean = loss.mean(0)
 
         return dict(
-            loss=loss,
-            mse=mse,
-            mmd=mmd,
+            loss=loss_mean,
+            mse=mse_mean,
+            mmd=mmd_mean,
         )
 
     def _convert_dataloader(self, dataloader: DataLoader) -> DataLoader:
