@@ -12,7 +12,7 @@ def expand_dim(x: Tensor, dim: int, k: int) -> Tensor:
         >>> x = torch.randn(3, 4)
         >>> x.shape
         torch.Size([3, 4])
-        >>> expand_dim(x, 0, 2).shape
+        >>> expand_dim(x, 0, 6).shape
         torch.Size([6, 4])
     """
     expand = [-1] * x.dim()
