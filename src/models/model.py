@@ -64,18 +64,15 @@ class Model(Trainable):
         for layer in self.encoder.modules():
             if isinstance(layer, nn.Linear):
                 nn.init.xavier_normal_(layer.weight)
-                nn.init.zeros_(layer.bias)
+
+        nn.init.zeros_(self.encoder[-1][0].bias)
 
         # initialize as random drift
         for layer in self.flow.modules():
             if isinstance(layer, nn.Linear):
                 nn.init.xavier_normal_(layer.weight)
-                nn.init.zeros_(layer.bias)
 
-    def velocity(self, x: Tensor, t: Tensor, c: Tensor) -> Tensor:
-        xtc = torch.cat([x, t, c], dim=1)
-
-        return self.flow(xtc)
+        nn.init.zeros_(self.flow[-1][0].bias)
 
     def compute_metrics(self, batch, batch_idx):
         xt, x0, x1, t, vstar = batch
