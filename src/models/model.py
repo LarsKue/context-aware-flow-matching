@@ -82,7 +82,7 @@ class Model(Trainable):
 
         c = self.encoder(x0)
 
-        mmd = L.mmd_loss(c, torch.randn_like(c), reduction="none")
+        mmd = L.mmd_loss(c, torch.randn_like(c), scales=torch.logspace(-1, 0, 5), reduction="none")
         mmd_mean = mmd.mean(0)
 
         v = self.velocity(xt, t, c)
