@@ -26,7 +26,7 @@ class OTCoupledIterator:
         # batch norm
         x1 = (x1 - x1.mean(dim=0)) / x1.std(dim=0)
 
-        batch_size = x1.size(0)
+        batch_size, set_size, *_ = x1.shape
 
         x0 = torch.randn_like(x1)
 
@@ -34,8 +34,8 @@ class OTCoupledIterator:
         perm = torch.multinomial(pi, num_samples=1).squeeze(1)
         x1 = x1[perm]
 
-        t = torch.rand(batch_size, device=x1.device)
-        t_expanded = U.unsqueeze_right(t, x1.dim() - 1).expand_as(x1)
+        t = torch.rand(batch_size, set_size, device=x1.device)
+        t_expanded = U.unsqueeze_right(t, x1.dim() - t.dim()).expand_as(x1)
 
         xt = t_expanded * x1 + (1 - t_expanded) * x0
 
