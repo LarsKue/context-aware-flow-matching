@@ -10,6 +10,7 @@ import trimesh
 from torch.utils.data import Dataset
 from torchvision.datasets.utils import extract_archive
 from tqdm import tqdm
+from typing import Sequence
 
 
 class ModelNet10Dataset(Dataset):
@@ -27,7 +28,7 @@ class ModelNet10Dataset(Dataset):
         "toilet",
     }
 
-    def __init__(self, root: str | Path, shapes: str = "all", samples: int = 2 ** 11, download: bool = True):
+    def __init__(self, root: str | Path, shapes: str | Sequence[str] = "all", samples: int = 2 ** 11, download: bool = True):
         super().__init__()
 
         self.root = Path(root)
