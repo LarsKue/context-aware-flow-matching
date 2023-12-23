@@ -32,42 +32,30 @@ def gaussian_kernel(x1: Tensor, x2: Tensor, scales: Tensor) -> Tensor:
     return torch.sum(torch.exp(-exponent), dim=-1)
 
 
-def mmd_loss(samples: Tensor, target: Tensor, kernel=gaussian_kernel, scales: Tensor | str | int = "auto", reduction: str = "mean"):
+def mmd_loss(samples: Tensor, target: Tensor, kernel=gaussian_kernel, scales: Tensor | str | int = "auto"):
     """
     Compute the Maximum-Mean-Discrepancy (MMD) between samples from two distributions
     Parameters
     ----------
-    samples: Samples from the target distrbution. Tensor of shape (N, D)
-    target: Samples from the actual distribution. Tensor of shape (M, D)
+    samples: Samples from the actual distribution. Tensor of shape (N, D)
+    target: Samples from the target distribution. Tensor of shape (M, D)
     kernel: Kernel distance function to use
     scales: Characteristic scales used in the kernel function. Tensor of shape (K,)
 
     Returns
     -------
-    mmd: Maximum-Mean-Discrepancy between data and code
+    mmd: Maximum-Mean-Discrepancy between data and code. Tensor of shape ()
     """
     if scales == "auto":
-        scales = torch.logspace(-3, 3, 30)
+        scales = torch.logspace(-6, 6, 13)
     else:
         scales = scales
 
     target = target.to(samples.device)
     scales = scales.to(samples.device)
 
-    l1 = torch.mean(kernel(samples, samples, scales=scales), dim=1)
-    l2 = torch.mean(kernel(target, target, scales=scales), dim=1)
-    l3 = torch.mean(kernel(samples, target, scales=scales), dim=1)
+    l1 = torch.mean(kernel(samples, samples, scales=scales))
+    l2 = torch.mean(kernel(target, target, scales=scales))
+    l3 = torch.mean(kernel(samples, target, scales=scales))
 
-    mmd = l1 + l2 - 2.0 * l3
-
-    match reduction:
-        case "none":
-            pass
-        case "mean":
-            mmd = mmd.mean(0)
-        case "sum":
-            mmd = mmd.sum(0)
-        case _:
-            raise ValueError(f"Invalid reduction {reduction}")
-
-    return mmd
+    return l1 + l2 - 2.0 * l3
