@@ -3,7 +3,8 @@ import torch
 import torch.nn as nn
 
 from torch import Size, Tensor
-from torch.utils.data import DataLoader
+
+from functools import partial
 
 from lightning_trainable import Trainable, TrainableHParams
 from lightning_trainable.hparams import Range
@@ -12,7 +13,7 @@ import src.losses as L
 import src.utils as U
 
 from src.callbacks import SampleCallback
-from src.dataloaders import FlowMatchingDataLoader
+from src.datasets import cafm_collate
 
 from . import pools
 
@@ -31,37 +32,59 @@ class Model(Trainable):
     def __init__(self, hparams, *datasets):
         super().__init__(hparams, *datasets)
 
+        # self.encoder = nn.Sequential(
+        #     nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
+        #     *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
+        #     pools.TopK(k=512, dim=1),
+        #     nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
+        #     *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
+        #     pools.TopK(k=64, dim=1),
+        #     nn.Sequential(nn.Linear(256, 1024), nn.ReLU()),
+        #     *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(16)],
+        #     pools.Mean(dim=1),
+        #     nn.Flatten(),
+        #     *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(8)],
+        #     nn.Sequential(nn.Linear(1024, self.hparams.embeddings)),
+        # )
+        #
+        # # diamond shape flow matching model
+        # self.flow = nn.Sequential(
+        #     nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 64), nn.ReLU()),
+        #     *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
+        #     nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
+        #     *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
+        #     nn.Sequential(nn.Linear(256, 1024), nn.ReLU()),
+        #     *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(16)],
+        #     nn.Sequential(nn.Linear(1024, 256), nn.ReLU()),
+        #     *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
+        #     nn.Sequential(nn.Linear(256, 64), nn.ReLU()),
+        #     *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
+        #     nn.Sequential(nn.Linear(64, self.hparams.features)),
+        # )
+
         self.encoder = nn.Sequential(
             nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
+            *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(4)],
             pools.TopK(k=512, dim=1),
             nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
-            pools.TopK(k=64, dim=1),
-            nn.Sequential(nn.Linear(256, 1024), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(16)],
+            *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(6)],
             pools.Mean(dim=1),
             nn.Flatten(),
-            *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(8)],
-            nn.Sequential(nn.Linear(1024, self.hparams.embeddings)),
+            *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(4)],
+            nn.Sequential(nn.Linear(256, self.hparams.embeddings)),
         )
 
-        # diamond shape flow matching model
         self.flow = nn.Sequential(
             nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 64), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
+            *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(4)],
             nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
-            nn.Sequential(nn.Linear(256, 1024), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(16)],
-            nn.Sequential(nn.Linear(1024, 256), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
+            *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(6)],
             nn.Sequential(nn.Linear(256, 64), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
+            *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(4)],
             nn.Sequential(nn.Linear(64, self.hparams.features)),
         )
 
-        # initialize as random projection
+        # # initialize as random projection
         for layer in self.encoder.modules():
             if isinstance(layer, nn.Linear):
                 nn.init.xavier_normal_(layer.weight)
@@ -76,73 +99,70 @@ class Model(Trainable):
         nn.init.zeros_(self.flow[-1][0].bias)
 
     def compute_metrics(self, batch, batch_idx):
-        xt, x0, x1, t, vstar = batch
+        sn0, sn1, ssn0, ssn1, ssnt, t, vstar = batch
 
-        batch_size, set_size, *_ = x0.shape
+        c = self.encoder(sn1)
+        mmd_loss = L.mmd_loss(c, torch.randn_like(c), scales=torch.logspace(-20, 20, base=2, steps=41))
 
-        c = self.encoder(x0)
+        v = self.velocity(ssnt, t, c)
 
-        mmd = L.mmd_loss(c, torch.randn_like(c), scales=torch.logspace(-1, 0, 5), reduction="none")
-        mmd_mean = mmd.mean(0)
+        l1_loss = torch.mean(torch.abs(v - vstar))
+        l2_loss = torch.mean(torch.square(v - vstar))
 
-        v = self.velocity(xt, t, c)
-
-        mse = U.mean_except(torch.square(v - vstar), 0)
-        mse_mean = mse.mean(0)
-
-        loss = self.hparams.gamma * mmd + (1 - self.hparams.gamma) * mse
-        loss_mean = loss.mean(0)
+        loss = self.hparams.gamma * mmd_loss + (1 - self.hparams.gamma) * l2_loss
 
         return dict(
-            loss=loss_mean,
-            mse=mse_mean,
-            mmd=mmd_mean,
+            loss=loss,
+            l1_loss=l1_loss,
+            l2_loss=l2_loss,
+            mmd_loss=mmd_loss,
         )
 
-    def velocity(self, x: Tensor, t: Tensor | float, c: Tensor) -> Tensor:
-        if isinstance(t, float):
-            t = torch.full((x.shape[0],), fill_value=t, device=self.device)
+    def velocity(self, sn: Tensor, t: Tensor | float, c: Tensor) -> Tensor:
+        batch_size, set_size, _ = sn.shape
 
-        t = U.unsqueeze_right(t, x.dim() - t.dim())
-        t = U.expand_dim(t, 1, x.shape[1])
+        if isinstance(t, float):
+            t = torch.full((batch_size,), fill_value=t, device=self.device)
+
+        t = U.unsqueeze_right(t, sn.dim() - t.dim())
+        t = U.expand_dim(t, 1, set_size)
 
         c = c.unsqueeze(1)
-        c = U.expand_dim(c, 1, x.shape[1])
+        c = U.expand_dim(c, 1, set_size)
 
-        xtc = torch.cat([x, t, c], dim=2)
+        sntc = torch.cat([sn, t, c], dim=2)
 
-        return self.flow(xtc)
+        return self.flow(sntc)
 
+    @torch.no_grad()
     def sample(self, sample_shape: Size = (1,), steps: int = 100) -> Tensor:
         c = torch.randn(sample_shape[0], self.hparams.embeddings, device=self.device)
-        x = torch.randn(sample_shape[0], sample_shape[1], self.hparams.features, device=self.device)
+        sn = torch.randn(sample_shape[0], sample_shape[1], self.hparams.features, device=self.device)
 
         t = 0.0
         dt = 1.0 / steps
 
         for i in range(steps):
-            v = self.velocity(x, t, c)
-            x = x + v * dt
+            v = self.velocity(sn, t, c)
+            sn = sn + v * dt
             t = t + dt
 
-        return x
+        return sn
 
-    def _convert_dataloader(self, dataloader: DataLoader) -> DataLoader:
-        # we don't want to rewrite all the customizing logic, so just cast to our custom class
-        # this works, because the class is a subclass of DataLoader and does not introduce any new
-        # attributes or methods
-        dataloader.__class__ = FlowMatchingDataLoader
+    def train_dataloader(self):
+        dl = super().train_dataloader()
+        dl.collate_fn = cafm_collate
+        return dl
 
-        return dataloader
+    def val_dataloader(self):
+        dl = super().val_dataloader()
+        dl.collate_fn = cafm_collate
+        return dl
 
-    def train_dataloader(self) -> DataLoader | list[DataLoader]:
-        return self._convert_dataloader(super().train_dataloader())
-
-    def val_dataloader(self) -> DataLoader | list[DataLoader]:
-        return self._convert_dataloader(super().val_dataloader())
-
-    def test_dataloader(self) -> DataLoader | list[DataLoader]:
-        return self._convert_dataloader(super().test_dataloader())
+    def test_dataloader(self):
+        dl = super().test_dataloader()
+        dl.collate_fn = cafm_collate
+        return dl
 
     def configure_callbacks(self):
         callbacks = super().configure_callbacks()
