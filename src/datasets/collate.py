@@ -30,7 +30,7 @@ def set_optimal_transport(sn0: Tensor, sn1: Tensor, epsilon: float = 1e-3, steps
 
 
 @torch.no_grad()
-def cafm_collate(batch: list[Tensor]) -> tuple[Tensor, ...]:
+def cafm_collate(batch: list[Tensor], subset_size: int) -> tuple[Tensor, ...]:
     """
     Optimal-Transport matching for set-based data is non-trivial:
     1. Using OT on the batch dimension as in classical OTFM is wrong,
@@ -40,7 +40,10 @@ def cafm_collate(batch: list[Tensor]) -> tuple[Tensor, ...]:
     4. Taking a small subset on the set dimension is legal, but leads to poor matching results.
     5. We cannot use an encoder-decoder structure if we want to sample arbitrary set sizes.
 
-    We do this in the collate function so that it happens in a worker process, thus not slowing training.
+    We take a sufficiently large subset, controlled by a hyperparameter.
+
+    We can do this in the collate function so that it happens in a worker process, thus not slowing training.
+    Alternatively, this can be done by using the CAFM dataset wrapper.
     """
     sn1 = default_collate(batch)
     sn1 = U.normalize(sn1, dim=1)
@@ -50,7 +53,7 @@ def cafm_collate(batch: list[Tensor]) -> tuple[Tensor, ...]:
     batch_size, set_size, *_ = sn1.shape
     device = sn1.device
 
-    subset = torch.randperm(set_size, device=device)[:batch_size]
+    subset = torch.randperm(set_size, device=device)[:subset_size]
     ssn0, ssn1 = sn0[:, subset], sn1[:, subset]
     ssn0, ssn1 = set_optimal_transport(ssn0, ssn1)
 
