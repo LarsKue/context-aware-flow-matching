@@ -39,6 +39,12 @@ Verify your install by running pytest:
 pytest tests -m "not slow"
 ```
 
+If you want to plot samples using blender, install the blender env instead:
+
+```bash
+conda env create -f blender.yaml
+```
+
 ## 3. Experiments
 
 Experiment notebooks can be found in the `experiments` folder. We use
