@@ -13,12 +13,15 @@ import src.losses as L
 import src.utils as U
 
 from src.callbacks import SampleCallback
-from src.datasets import cafm_collate
+from src.datasets import cafm_collate, ContextAwareFlowMatchingDataset as CAFMDataset
 
 from . import pools
+from .skip_connection import SkipLinear
 
 
 class ModelHParams(TrainableHParams):
+    subset_size: int
+
     features: int = 3
     conditions: int = 1
     embeddings: int = 256
@@ -30,92 +33,93 @@ class Model(Trainable):
     hparams: ModelHParams
 
     def __init__(self, hparams, *datasets):
-        super().__init__(hparams, *datasets)
+        hparams = self.hparams_type(**hparams)
+        datasets = [CAFMDataset(d, hparams.subset_size) for d in datasets]
 
-        # self.encoder = nn.Sequential(
-        #     nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
-        #     *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
-        #     pools.TopK(k=512, dim=1),
-        #     nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
-        #     *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
-        #     pools.TopK(k=64, dim=1),
-        #     nn.Sequential(nn.Linear(256, 1024), nn.ReLU()),
-        #     *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(16)],
-        #     pools.Mean(dim=1),
-        #     nn.Flatten(),
-        #     *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(8)],
-        #     nn.Sequential(nn.Linear(1024, self.hparams.embeddings)),
-        # )
-        #
-        # # diamond shape flow matching model
-        # self.flow = nn.Sequential(
-        #     nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 64), nn.ReLU()),
-        #     *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
-        #     nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
-        #     *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
-        #     nn.Sequential(nn.Linear(256, 1024), nn.ReLU()),
-        #     *[nn.Sequential(nn.Linear(1024, 1024), nn.ReLU()) for _ in range(16)],
-        #     nn.Sequential(nn.Linear(1024, 256), nn.ReLU()),
-        #     *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(16)],
-        #     nn.Sequential(nn.Linear(256, 64), nn.ReLU()),
-        #     *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(8)],
-        #     nn.Sequential(nn.Linear(64, self.hparams.features)),
-        # )
+        super().__init__(hparams, *datasets)
 
         self.encoder = nn.Sequential(
             nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(4)],
+            *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(8)],
+
+            SkipLinear(64),
             pools.TopK(k=512, dim=1),
-            nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(6)],
+
+            nn.Sequential(nn.Linear(64, 128), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(8)],
+
+            SkipLinear(128),
+            pools.TopK(k=128, dim=1),
+
+            nn.Sequential(nn.Linear(128, 256), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(8)],
+
+            SkipLinear(256),
+            pools.TopK(k=32, dim=1),
+
+            nn.Sequential(nn.Linear(256, 512), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+
+            SkipLinear(512),
+            pools.TopK(k=8, dim=1),
+
+            nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(8)],
+
+            SkipLinear(1024),
             pools.Mean(dim=1),
             nn.Flatten(),
-            *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(4)],
-            nn.Sequential(nn.Linear(256, self.hparams.embeddings)),
+
+            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(16)],
+            nn.Linear(1024, self.hparams.embeddings),
         )
 
         self.flow = nn.Sequential(
-            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 64), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(4)],
-            nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(256, 256), nn.ReLU()) for _ in range(6)],
-            nn.Sequential(nn.Linear(256, 64), nn.ReLU()),
-            *[nn.Sequential(nn.Linear(64, 64), nn.ReLU()) for _ in range(4)],
-            nn.Sequential(nn.Linear(64, self.hparams.features)),
+            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 512), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+
+            nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(8)],
+
+            nn.Sequential(nn.Linear(1024, 512), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+
+            nn.Sequential(nn.Linear(512, 256), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(8)],
+
+            nn.Sequential(nn.Linear(256, 128), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(8)],
+
+            nn.Sequential(nn.Linear(128, 64), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(8)],
+
+            nn.Linear(64, self.hparams.features),
         )
 
-        # # initialize as random projection
-        for layer in self.encoder.modules():
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_normal_(layer.weight)
-
-        nn.init.zeros_(self.encoder[-1][0].bias)
+        # initialize as random projection
+        nn.init.xavier_normal_(self.encoder[-1].weight)
+        nn.init.zeros_(self.encoder[-1].bias)
 
         # initialize as random drift
-        for layer in self.flow.modules():
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_normal_(layer.weight)
-
-        nn.init.zeros_(self.flow[-1][0].bias)
+        nn.init.xavier_normal_(self.flow[-1].weight)
+        nn.init.zeros_(self.flow[-1].bias)
 
     def compute_metrics(self, batch, batch_idx):
         sn0, sn1, ssn0, ssn1, ssnt, t, vstar = batch
 
         c = self.encoder(sn1)
-        mmd_loss = L.mmd_loss(c, torch.randn_like(c), scales=torch.logspace(-20, 20, base=2, steps=41))
+        mmd = L.mmd_loss(c, torch.randn_like(c), scales=torch.logspace(-20, 20, base=2, steps=41))
 
         v = self.velocity(ssnt, t, c)
 
-        l1_loss = torch.mean(torch.abs(v - vstar))
-        l2_loss = torch.mean(torch.square(v - vstar))
+        mse = torch.mean(torch.square(v - vstar))
 
-        loss = self.hparams.gamma * mmd_loss + (1 - self.hparams.gamma) * l2_loss
+        loss = self.hparams.gamma * mmd + (1 - self.hparams.gamma) * mse
 
         return dict(
             loss=loss,
-            l1_loss=l1_loss,
-            l2_loss=l2_loss,
-            mmd_loss=mmd_loss,
+            mse=mse,
+            mmd=mmd,
         )
 
     def velocity(self, sn: Tensor, t: Tensor | float, c: Tensor) -> Tensor:
@@ -151,17 +155,17 @@ class Model(Trainable):
 
     def train_dataloader(self):
         dl = super().train_dataloader()
-        dl.collate_fn = cafm_collate
+        # dl.collate_fn = partial(cafm_collate, subset_size=self.hparams.subset_size)
         return dl
 
     def val_dataloader(self):
         dl = super().val_dataloader()
-        dl.collate_fn = cafm_collate
+        # dl.collate_fn = partial(cafm_collate, subset_size=self.hparams.subset_size)
         return dl
 
     def test_dataloader(self):
         dl = super().test_dataloader()
-        dl.collate_fn = cafm_collate
+        # dl.collate_fn = partial(cafm_collate, subset_size=self.hparams.subset_size)
         return dl
 
     def configure_callbacks(self):
