@@ -37,7 +37,7 @@ class ModelNet10Dataset(Dataset):
         if download:
             self.download()
 
-        self.files = pd.DataFrame(columns=["shape", "split", "index", "path", "mesh"])
+        self.files = pd.DataFrame(columns=["shape", "split", "index", "path", "mesh", "mean", "std"])
 
         match shapes:
             case "all":
@@ -56,12 +56,13 @@ class ModelNet10Dataset(Dataset):
         self._preload_meshes()
 
     def __getitem__(self, item):
-        mesh = self.files.iloc[item]["mesh"]
+        row = self.files.iloc[item]
+        mesh = row["mesh"]
 
         points = mesh.sample(self.samples).astype(np.float32)
-        points = torch.from_numpy(points)
+        points = (points - row["mean"]) / row["std"]
 
-        return points
+        return torch.from_numpy(points)
 
     def __len__(self):
         return len(self.files)
@@ -112,8 +113,7 @@ class ModelNet10Dataset(Dataset):
 
         self.files = self.files.sort_values(by=["shape"]).reset_index()
 
-    @staticmethod
-    def _load_mesh(mesh_path):
+    def _load_mesh(self, mesh_path):
         row = {
             "shape": mesh_path.parent.parent.name,
             "split": mesh_path.parent.name,
@@ -121,6 +121,12 @@ class ModelNet10Dataset(Dataset):
             "path": str(mesh_path),
             "mesh": trimesh.load(mesh_path),
         }
+
+        samples = row["mesh"].sample(self.samples).astype(np.float32)
+        row["mean"] = samples.mean(axis=0, keepdims=True)
+        row["std"] = samples.std(axis=0, keepdims=True)
+
+        row = {k: [v] for k, v in row.items()}
         row = pd.DataFrame(row, index=[0])
 
         return row
