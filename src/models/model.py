@@ -3,8 +3,11 @@ import torch
 import torch.nn as nn
 
 from torch import Size, Tensor
+from torch.utils.checkpoint import checkpoint_sequential
 
 from functools import partial
+
+from tqdm import tqdm, trange
 
 from lightning_trainable import Trainable, TrainableHParams
 from lightning_trainable.hparams import Range
@@ -16,7 +19,7 @@ from src.callbacks import SampleCallback
 from src.datasets import cafm_collate, ContextAwareFlowMatchingDataset as CAFMDataset
 
 from . import pools
-from .skip_connection import SkipLinear
+from .skip_connection import SkipLinear, ResidualBlock
 
 
 class ModelHParams(TrainableHParams):
@@ -27,6 +30,10 @@ class ModelHParams(TrainableHParams):
     embeddings: int = 256
 
     gamma: Range(0.0, 1.0) = 0.5
+
+    dropout: Range(0.0, 1.0) | None = None
+
+    checkpoint_segments: int | None = None
 
 
 class Model(Trainable):
@@ -40,51 +47,140 @@ class Model(Trainable):
 
         # big networks
 
+        self.encoder = nn.Sequential(
+            nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
+
+            ResidualBlock(64, 16, dropout=self.hparams.dropout),
+
+            SkipLinear(64),
+            pools.TopK(k=1024, dim=1),
+            nn.Sequential(nn.Linear(64, 128), nn.ReLU()),
+
+            ResidualBlock(128, 16, dropout=self.hparams.dropout),
+
+            SkipLinear(128),
+            pools.TopK(k=512, dim=1),
+
+            ResidualBlock(128, 16, dropout=self.hparams.dropout),
+
+            SkipLinear(128),
+            pools.TopK(k=256, dim=1),
+            nn.Sequential(nn.Linear(128, 256), nn.ReLU()),
+
+            ResidualBlock(256, 8, dropout=self.hparams.dropout),
+
+            SkipLinear(256),
+            pools.TopK(k=128, dim=1),
+
+            ResidualBlock(256, 8, dropout=self.hparams.dropout),
+
+            SkipLinear(256),
+            pools.TopK(k=64, dim=1),
+            nn.Sequential(nn.Linear(256, 512), nn.ReLU()),
+
+            ResidualBlock(512, 8, dropout=self.hparams.dropout),
+
+            SkipLinear(512),
+            pools.TopK(k=32, dim=1),
+
+            ResidualBlock(512, 8, dropout=self.hparams.dropout),
+
+            SkipLinear(512),
+            pools.TopK(k=16, dim=1),
+
+            ResidualBlock(512, 8, dropout=self.hparams.dropout),
+
+            SkipLinear(512),
+            pools.TopK(k=8, dim=1),
+            nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
+
+            ResidualBlock(1024, 8, dropout=self.hparams.dropout),
+
+            SkipLinear(1024),
+            pools.Mean(dim=1),
+            nn.Flatten(),
+
+            ResidualBlock(1024, 8, dropout=self.hparams.dropout),
+
+            nn.Sequential(nn.Linear(1024, 512), nn.ReLU()),
+
+            ResidualBlock(512, 8, dropout=self.hparams.dropout),
+
+            nn.Linear(512, self.hparams.embeddings),
+        )
+
+        self.flow = nn.Sequential(
+            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 512), nn.ReLU()),
+            ResidualBlock(512, 16, dropout=self.hparams.dropout),
+
+            nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
+            ResidualBlock(1024, 16, dropout=self.hparams.dropout),
+
+            nn.Sequential(nn.Linear(1024, 512), nn.ReLU()),
+            ResidualBlock(512, 16, dropout=self.hparams.dropout),
+
+            nn.Sequential(nn.Linear(512, 256), nn.ReLU()),
+            ResidualBlock(256, 8, dropout=self.hparams.dropout),
+
+            nn.Sequential(nn.Linear(256, 128), nn.ReLU()),
+            ResidualBlock(128, 8, dropout=self.hparams.dropout),
+
+            nn.Sequential(nn.Linear(128, 64), nn.ReLU()),
+            ResidualBlock(64, 8, dropout=self.hparams.dropout),
+
+            nn.Linear(64, self.hparams.features),
+        )
+
+        if self.hparams.checkpoint_segments is not None:
+            segments = self.hparams.checkpoint_segments
+            self.encoder = U.CheckpointedSequential(*self.encoder, segments=segments)
+            self.flow = U.CheckpointedSequential(*self.flow, segments=segments)
+
+        # medium networks (~15M params)
+
         # self.encoder = nn.Sequential(
         #     nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
-        #     *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(8)],
+        #     *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(4)],
         #
         #     SkipLinear(64),
         #     pools.TopK(k=512, dim=1),
         #
         #     nn.Sequential(nn.Linear(64, 128), nn.ReLU()),
-        #     *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(8)],
+        #     *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(4)],
         #
         #     SkipLinear(128),
-        #     pools.TopK(k=128, dim=1),
+        #     pools.TopK(k=256, dim=1),
         #
         #     nn.Sequential(nn.Linear(128, 256), nn.ReLU()),
-        #     *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(8)],
+        #     *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(4)],
         #
         #     SkipLinear(256),
-        #     pools.TopK(k=32, dim=1),
+        #     pools.TopK(k=128, dim=1),
         #
         #     nn.Sequential(nn.Linear(256, 512), nn.ReLU()),
-        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(4)],
         #
         #     SkipLinear(512),
-        #     pools.TopK(k=8, dim=1),
+        #     pools.TopK(k=32, dim=1),
         #
         #     nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
-        #     *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(8)],
+        #     *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(2)],
         #
         #     SkipLinear(1024),
         #     pools.Mean(dim=1),
         #     nn.Flatten(),
         #
-        #     *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(16)],
-        #     nn.Linear(1024, self.hparams.embeddings),
+        #     *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(2)],
+        #
+        #     nn.Sequential(nn.Linear(1024, 512), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(4)],
+        #
+        #     nn.Linear(512, self.hparams.embeddings),
         # )
         #
         # self.flow = nn.Sequential(
         #     nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 512), nn.ReLU()),
-        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
-        #
-        #     nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
-        #     *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(8)],
-        #
-        #     nn.Sequential(nn.Linear(1024, 512), nn.ReLU()),
-        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(16)],
         #
         #     nn.Sequential(nn.Linear(512, 256), nn.ReLU()),
         #     *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(8)],
@@ -98,65 +194,7 @@ class Model(Trainable):
         #     nn.Linear(64, self.hparams.features),
         # )
 
-        # medium networks (~15M params)
-
-        self.encoder = nn.Sequential(
-            nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(4)],
-
-            SkipLinear(64),
-            pools.TopK(k=512, dim=1),
-
-            nn.Sequential(nn.Linear(64, 128), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(4)],
-
-            SkipLinear(128),
-            pools.TopK(k=256, dim=1),
-
-            nn.Sequential(nn.Linear(128, 256), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(4)],
-
-            SkipLinear(256),
-            pools.TopK(k=128, dim=1),
-
-            nn.Sequential(nn.Linear(256, 512), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(4)],
-
-            SkipLinear(512),
-            pools.TopK(k=32, dim=1),
-
-            nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(2)],
-
-            SkipLinear(1024),
-            pools.Mean(dim=1),
-            nn.Flatten(),
-
-            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(2)],
-
-            nn.Sequential(nn.Linear(1024, 512), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(4)],
-
-            nn.Linear(512, self.hparams.embeddings),
-        )
-
-        self.flow = nn.Sequential(
-            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 512), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(16)],
-
-            nn.Sequential(nn.Linear(512, 256), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(8)],
-
-            nn.Sequential(nn.Linear(256, 128), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(8)],
-
-            nn.Sequential(nn.Linear(128, 64), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(8)],
-
-            nn.Linear(64, self.hparams.features),
-        )
-
-        # small networks
+        # small networks for testing
 
         # self.encoder = nn.Sequential(
         #     nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
@@ -245,18 +283,23 @@ class Model(Trainable):
         return self.flow(sntc)
 
     @torch.no_grad()
-    def sample(self, sample_shape: Size = (1,), steps: int = 100) -> Tensor:
-        c = torch.randn(sample_shape[0], self.hparams.embeddings, device=self.device)
+    def sample(self, sample_shape: Size = (1,), steps: int = 100, progress: bool = False) -> Tensor:
         sn = torch.randn(sample_shape[0], sample_shape[1], self.hparams.features, device=self.device)
+        c = torch.randn(sample_shape[0], self.hparams.embeddings, device=self.device)
 
-        return self.sample_from(sn, c, steps=steps)
+        return self.sample_from(sn, c, steps=steps, progress=progress)
 
     @torch.no_grad()
-    def sample_from(self, noise: Tensor, condition: Tensor, steps: int = 100):
+    def sample_from(self, noise: Tensor, condition: Tensor, steps: int = 100, progress: bool = False) -> Tensor:
         t = 0.0
         dt = 1.0 / steps
 
-        for i in range(steps):
+        if progress:
+            steps = trange(steps)
+        else:
+            steps = range(steps)
+
+        for step in steps:
             velocity = self.velocity(noise, t, condition)
             noise = noise + velocity * dt
             t = t + dt
