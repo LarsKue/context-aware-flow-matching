@@ -30,7 +30,12 @@ def scatter(samples: np.ndarray, ax=plt.axes(projection="3d"), **scatter_kwargs)
 
 def scatter_bp(samples: np.ndarray, ax=plt.gca(), **render_kwargs):
     """ This only works with blender-plot installed, which requires python==3.10.* """
-    import blender_plot as bp
+    try:
+        import blender_plot as bp
+    except ImportError:
+        raise ImportError(f"Using blender to render scatter plots requires blender-plot. "
+                          f"Install the blender environment from blender.yaml to use this feature.")
+
     import sys
 
     sns.set_style("whitegrid", {"axes.grid": False})
