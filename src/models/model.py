@@ -147,15 +147,19 @@ class Model(Trainable):
         c = torch.randn(sample_shape[0], self.hparams.embeddings, device=self.device)
         sn = torch.randn(sample_shape[0], sample_shape[1], self.hparams.features, device=self.device)
 
+        return self.sample_from(sn, c, steps=steps)
+
+    @torch.no_grad()
+    def sample_from(self, noise: Tensor, condition: Tensor, steps: int = 100):
         t = 0.0
         dt = 1.0 / steps
 
         for i in range(steps):
-            v = self.velocity(sn, t, c)
-            sn = sn + v * dt
+            velocity = self.velocity(noise, t, condition)
+            noise = noise + velocity * dt
             t = t + dt
 
-        return sn
+        return noise
 
     def train_dataloader(self):
         dl = super().train_dataloader()
