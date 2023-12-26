@@ -46,7 +46,7 @@ def mmd_loss(samples: Tensor, target: Tensor, kernel=gaussian_kernel, scales: Te
 
     Returns
     -------
-    mmd: Maximum-Mean-Discrepancy between data and code. Tensor of shape ()
+    mmd: Maximum-Mean-Discrepancy between data and code. Tensor of shape (N,)
     """
     if scales == "auto":
         scales = torch.logspace(-6, 6, 13)

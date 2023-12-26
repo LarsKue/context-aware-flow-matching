@@ -38,11 +38,3 @@ class Rainbow(Colormap):
         rgba = np.concatenate([rgb, alpha], axis=1)
 
         return rgba
-
-
-r, g, b = 1, 1, 1
-
-m = max(r, g, b)
-
-
-
