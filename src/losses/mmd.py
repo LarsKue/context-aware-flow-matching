@@ -1,6 +1,8 @@
 import torch
 from torch import Tensor
 
+import src.utils as U
+
 
 def gaussian_kernel(x1: Tensor, x2: Tensor, scales: Tensor) -> Tensor:
     """
@@ -29,7 +31,7 @@ def gaussian_kernel(x1: Tensor, x2: Tensor, scales: Tensor) -> Tensor:
     exponent = norms[:, :, None] / (2.0 * scales[None, None, :])
 
     # (N, M)
-    return torch.sum(torch.exp(-exponent), dim=-1)
+    return torch.mean(torch.exp(-exponent), dim=-1)
 
 
 def mmd_loss(samples: Tensor, target: Tensor, kernel=gaussian_kernel, scales: Tensor | str | int = "auto"):
@@ -54,8 +56,8 @@ def mmd_loss(samples: Tensor, target: Tensor, kernel=gaussian_kernel, scales: Te
     target = target.to(samples.device)
     scales = scales.to(samples.device)
 
-    l1 = torch.mean(kernel(samples, samples, scales=scales))
-    l2 = torch.mean(kernel(target, target, scales=scales))
-    l3 = torch.mean(kernel(samples, target, scales=scales))
+    l1 = U.mean_except(kernel(samples, samples, scales=scales), 0)
+    l2 = U.mean_except(kernel(target, target, scales=scales), 0)
+    l3 = U.mean_except(kernel(samples, target, scales=scales), 0)
 
     return l1 + l2 - 2.0 * l3
