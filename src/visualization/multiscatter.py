@@ -27,7 +27,7 @@ def multiscatter(samples: np.ndarray, layout: (int, int) = None, **scatter_kwarg
     return fig
 
 
-def multiscatter_bp(samples: np.ndarray, layout: (int, int), **render_kwargs):
+def multiscatter_bp(samples: np.ndarray, layout: (int, int) = None, **render_kwargs):
     sns.set_style("whitegrid", {"axes.grid": False})
     batch_size, set_size, *_ = samples.shape
 
