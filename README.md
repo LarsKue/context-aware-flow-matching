@@ -70,8 +70,8 @@ We can interpolate between contexts:
 The shape manifold is particularly visible when we rotate points in the latent space:
 
 <p align="center">
-    <video width="500" autoplay loop>
+    <video width="500" autoplay loop playsinline>
         <source src="docs/modelnet10/rotation.mp4" type="video/mp4">
-    Your browser does not support the video tag.
+        Your browser does not support the video tag.
     </video>
 </p>
