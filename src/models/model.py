@@ -38,51 +38,113 @@ class Model(Trainable):
 
         super().__init__(hparams, *datasets)
 
+        # big networks
+
+        # self.encoder = nn.Sequential(
+        #     nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(8)],
+        #
+        #     SkipLinear(64),
+        #     pools.TopK(k=512, dim=1),
+        #
+        #     nn.Sequential(nn.Linear(64, 128), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(8)],
+        #
+        #     SkipLinear(128),
+        #     pools.TopK(k=128, dim=1),
+        #
+        #     nn.Sequential(nn.Linear(128, 256), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(8)],
+        #
+        #     SkipLinear(256),
+        #     pools.TopK(k=32, dim=1),
+        #
+        #     nn.Sequential(nn.Linear(256, 512), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+        #
+        #     SkipLinear(512),
+        #     pools.TopK(k=8, dim=1),
+        #
+        #     nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(8)],
+        #
+        #     SkipLinear(1024),
+        #     pools.Mean(dim=1),
+        #     nn.Flatten(),
+        #
+        #     *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(16)],
+        #     nn.Linear(1024, self.hparams.embeddings),
+        # )
+        #
+        # self.flow = nn.Sequential(
+        #     nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 512), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+        #
+        #     nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(8)],
+        #
+        #     nn.Sequential(nn.Linear(1024, 512), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+        #
+        #     nn.Sequential(nn.Linear(512, 256), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(8)],
+        #
+        #     nn.Sequential(nn.Linear(256, 128), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(8)],
+        #
+        #     nn.Sequential(nn.Linear(128, 64), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(8)],
+        #
+        #     nn.Linear(64, self.hparams.features),
+        # )
+
+        # medium networks (~15M params)
+
+        # TODO: check if dropout necessary
+
         self.encoder = nn.Sequential(
             nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(8)],
+            *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(4)],
 
             SkipLinear(64),
             pools.TopK(k=512, dim=1),
 
             nn.Sequential(nn.Linear(64, 128), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(8)],
+            *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(4)],
 
             SkipLinear(128),
-            pools.TopK(k=128, dim=1),
+            pools.TopK(k=256, dim=1),
 
             nn.Sequential(nn.Linear(128, 256), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(8)],
+            *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(4)],
 
             SkipLinear(256),
-            pools.TopK(k=32, dim=1),
+            pools.TopK(k=128, dim=1),
 
             nn.Sequential(nn.Linear(256, 512), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(4)],
 
             SkipLinear(512),
-            pools.TopK(k=8, dim=1),
+            pools.TopK(k=32, dim=1),
 
             nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(8)],
+            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(2)],
 
             SkipLinear(1024),
             pools.Mean(dim=1),
             nn.Flatten(),
 
-            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(16)],
-            nn.Linear(1024, self.hparams.embeddings),
+            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(2)],
+
+            nn.Sequential(nn.Linear(1024, 512), nn.ReLU()),
+            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(4)],
+
+            nn.Linear(512, self.hparams.embeddings),
         )
 
         self.flow = nn.Sequential(
             nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 512), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
-
-            nn.Sequential(nn.Linear(512, 1024), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(1024), nn.ReLU()) for _ in range(8)],
-
-            nn.Sequential(nn.Linear(1024, 512), nn.ReLU()),
-            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(8)],
+            *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(16)],
 
             nn.Sequential(nn.Linear(512, 256), nn.ReLU()),
             *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(8)],
@@ -95,6 +157,48 @@ class Model(Trainable):
 
             nn.Linear(64, self.hparams.features),
         )
+
+        # small networks
+
+        # self.encoder = nn.Sequential(
+        #     nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(2)],
+        #
+        #     SkipLinear(64),
+        #     pools.TopK(k=512, dim=1),
+        #
+        #     nn.Sequential(nn.Linear(64, 256), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(2)],
+        #
+        #     SkipLinear(256),
+        #     pools.TopK(k=128, dim=1),
+        #
+        #     nn.Sequential(nn.Linear(256, 512), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(2)],
+        #
+        #     SkipLinear(512),
+        #     pools.Mean(dim=1),
+        #     nn.Flatten(),
+        #
+        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(4)],
+        #     nn.Linear(512, self.hparams.embeddings),
+        # )
+        #
+        # self.flow = nn.Sequential(
+        #     nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings, 512), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(512), nn.ReLU()) for _ in range(2)],
+        #
+        #     nn.Sequential(nn.Linear(512, 256), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(256), nn.ReLU()) for _ in range(2)],
+        #
+        #     nn.Sequential(nn.Linear(256, 128), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(128), nn.ReLU()) for _ in range(2)],
+        #
+        #     nn.Sequential(nn.Linear(128, 64), nn.ReLU()),
+        #     *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(2)],
+        #
+        #     nn.Linear(64, self.hparams.features),
+        # )
 
         # initialize as random projection
         nn.init.xavier_normal_(self.encoder[-1].weight)
