@@ -7,8 +7,8 @@ from lightning_trainable.metrics import sinkhorn
 
 
 @torch.no_grad()
-def optimal_transport(x0: Tensor, x1: Tensor, epsilon: float = 1e-6, steps: int = 1000) -> (Tensor, Tensor):
-    pi = sinkhorn(x0, x1, epsilon=epsilon, steps=steps)
+def optimal_transport(x0: Tensor, x1: Tensor, epsilon: float = 0.01, max_steps: int = 100, atol=1e-3) -> (Tensor, Tensor):
+    pi = sinkhorn(x0, x1, epsilon=epsilon, max_steps=max_steps, atol=atol).exp()
     perm = torch.multinomial(pi, num_samples=1).squeeze(1)
 
     x1 = x1[perm]
@@ -33,7 +33,7 @@ class ContextAwareFlowMatchingDataset(Dataset):
         subset = torch.randperm(set_size)[:self.subset_size]
         ssn0, ssn1 = sn0[subset], sn1[subset]
 
-        ssn0, ssn1 = optimal_transport(ssn0, ssn1, epsilon=1e-3, steps=100)
+        ssn0, ssn1 = optimal_transport(ssn0, ssn1, epsilon=0.25, max_steps=250, atol=1e-3)
 
         t = torch.rand(self.subset_size, 1)
 

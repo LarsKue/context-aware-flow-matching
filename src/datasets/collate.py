@@ -10,8 +10,8 @@ import src.utils as U
 
 
 @torch.no_grad()
-def optimal_transport(x0: Tensor, x1: Tensor, epsilon: float = 1e-6, steps: int = 1000) -> (Tensor, Tensor):
-    pi = sinkhorn(x0, x1, epsilon=epsilon, steps=steps)
+def optimal_transport(x0: Tensor, x1: Tensor, epsilon: float = 0.01, max_steps: int = 1000, atol: float = 1e-6) -> (Tensor, Tensor):
+    pi = sinkhorn(x0, x1, epsilon=epsilon, max_steps=max_steps, atol=atol).exp()
     perm = torch.multinomial(pi, num_samples=1).squeeze(1)
 
     x1 = x1[perm]
@@ -20,11 +20,11 @@ def optimal_transport(x0: Tensor, x1: Tensor, epsilon: float = 1e-6, steps: int 
 
 
 @torch.no_grad()
-def set_optimal_transport(sn0: Tensor, sn1: Tensor, epsilon: float = 1e-3, steps: int = 100) -> (Tensor, Tensor):
+def set_optimal_transport(sn0: Tensor, sn1: Tensor, epsilon: float = 0.01, max_steps: int = 100, atol=1e-3) -> (Tensor, Tensor):
     batch_size, set_size, *_ = sn1.shape
 
     for b in range(batch_size):
-        sn0[b], sn1[b] = optimal_transport(sn0[b], sn1[b], epsilon=epsilon, steps=steps)
+        sn0[b], sn1[b] = optimal_transport(sn0[b], sn1[b], epsilon=epsilon, max_steps=max_steps, atol=atol)
 
     return sn0, sn1
 
