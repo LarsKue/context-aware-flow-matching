@@ -8,7 +8,7 @@ Context-Aware learning is defined in the thesis as deep learning using an embedd
 context inputs:
 
 <p align="center">
-    <img src="docs/images/context-aware-learning.png" alt="Context-Aware Learning"/>
+    <img src="docs/context-aware-learning.png" alt="Context-Aware Learning"/>
 </p>
 
 
@@ -17,7 +17,7 @@ generative model that can be conditioned on sampled context embeddings, thus ena
 between contexts:
 
 <p align="center">
-    <img src="docs/images/context-aware-flow-matching.png" alt="Flow Matching" width=500 />
+    <img src="docs/context-aware-flow-matching.png" alt="Flow Matching" width=500 />
 </p>
 
 ## 2. Install
@@ -50,3 +50,28 @@ conda env create -f blender.yaml
 Experiment notebooks can be found in the `experiments` folder. We use
 [Lightning-Trainable](https://github.com/LarsKue/lightning-trainable)
 to train our models. Each notebook contains the hyperparameters used for training.
+
+### 3.1 ModelNet10
+
+Dataset: [ModelNet10](https://3dvision.princeton.edu/projects/2014/3DShapeNets/)
+
+Samples from the trained model:
+
+<p align="center">
+    <img src="docs/modelnet10/samples.png" alt="ModelNet10" width=500 />
+</p>
+
+We can interpolate between contexts:
+
+<p align="center">
+    <img src="docs/modelnet10/interpolation.png" alt="ModelNet10" width=500 />
+</p>
+
+The shape manifold is particularly visible when we rotate points in the latent space:
+
+<p align="center">
+    <video width="500" autoplay loop>
+        <source src="docs/modelnet10/rotation.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+    </video>
+</p>
