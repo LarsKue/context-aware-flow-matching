@@ -112,9 +112,13 @@ class Model(Trainable):
 
         v = self.velocity(ssnt, t, c)
 
-        mse = torch.mean(torch.square(v - vstar))
+        mse = U.mean_except(torch.square(v - vstar), 0)
 
         loss = self.hparams.gamma * mmd + (1 - self.hparams.gamma) * mse
+
+        loss = loss.mean(0)
+        mse = mse.mean(0)
+        mmd = mmd.mean(0)
 
         return dict(
             loss=loss,
