@@ -13,5 +13,5 @@ class SkipConnection(nn.Module):
 
 
 class SkipLinear(SkipConnection):
-    def __init__(self, features: int, *args, **kwargs):
-        super().__init__(nn.Linear(features, features, *args, **kwargs))
+    def __init__(self, features: int):
+        super().__init__(nn.Linear(features, features))
