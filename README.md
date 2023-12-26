@@ -55,10 +55,16 @@ to train our models. Each notebook contains the hyperparameters used for trainin
 
 Dataset: [ModelNet10](https://3dvision.princeton.edu/projects/2014/3DShapeNets/)
 
+Samples from the dataset:
+
+<p align="center">
+    <img src="docs/modelnet10/data_samples.png" alt="ModelNet10" width=500 />
+</p>
+
 Samples from the trained model:
 
 <p align="center">
-    <img src="docs/modelnet10/samples.png" alt="ModelNet10" width=500 />
+    <img src="docs/modelnet10/model_samples.png" alt="ModelNet10" width=500 />
 </p>
 
 We can interpolate between contexts:
@@ -75,3 +81,18 @@ The shape manifold is particularly visible when we rotate points in the latent s
         Your browser does not support the video tag.
     </video>
 </p>
+
+
+### 3.2 LIDAR-CS
+
+(Work in progress)
+
+Dataset: [LIDAR-CS](https://github.com/LiDAR-Perception/LiDAR-CS)
+
+Samples from the trained model:
+
+<p align="center">
+    <img src="docs/lidar-cs/samples.png" alt="LIDAR-CS" width=500 />
+</p>
+
+
