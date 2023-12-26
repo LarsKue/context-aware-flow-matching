@@ -100,8 +100,6 @@ class Model(Trainable):
 
         # medium networks (~15M params)
 
-        # TODO: check if dropout necessary
-
         self.encoder = nn.Sequential(
             nn.Sequential(nn.Linear(self.hparams.features, 64), nn.ReLU()),
             *[nn.Sequential(SkipLinear(64), nn.ReLU()) for _ in range(4)],
