@@ -7,7 +7,10 @@ import seaborn as sns
 from .rainbow import Rainbow
 
 
-def scatter(samples: np.ndarray, ax=plt.axes(projection="3d"), **scatter_kwargs):
+def scatter(samples: np.ndarray, ax=None, **scatter_kwargs):
+    if ax is None:
+        ax = plt.axes(projection="3d")
+
     sns.set_style("whitegrid", {"axes.grid": False})
 
     scatter_kwargs.setdefault("s", 8)
@@ -28,8 +31,11 @@ def scatter(samples: np.ndarray, ax=plt.axes(projection="3d"), **scatter_kwargs)
     return artist
 
 
-def scatter_bp(samples: np.ndarray, ax=plt.gca(), **render_kwargs):
+def scatter_bp(samples: np.ndarray, ax=None, **render_kwargs):
     """ This only works with blender-plot installed, which requires python==3.10.* """
+    if ax is None:
+        ax = plt.axes()
+
     try:
         import blender_plot as bp
     except ImportError:
