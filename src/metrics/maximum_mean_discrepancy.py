@@ -34,9 +34,9 @@ def gaussian_kernel(x1: Tensor, x2: Tensor, scales: Tensor) -> Tensor:
     return torch.mean(torch.exp(-exponent), dim=-1)
 
 
-def mmd_loss(samples: Tensor, target: Tensor, kernel=gaussian_kernel, scales: Tensor | str | int = "auto"):
+def maximum_mean_discrepancy(samples: Tensor, target: Tensor, kernel=gaussian_kernel, scales: Tensor | str | int = "auto"):
     """
-    Compute the Maximum-Mean-Discrepancy (MMD) between samples from two distributions
+    Compute the Maximum-Mean-Discrepancy between samples from two distributions
     Parameters
     ----------
     samples: Samples from the actual distribution. Tensor of shape (N, D)
