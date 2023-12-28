@@ -1,4 +1,4 @@
 
 from .cafm import ContextAwareFlowMatchingDataset
-from .collate import cafm_collate
+from .lidar_cs import LidarCSDataset
 from .modelnet10 import ModelNet10Dataset

@@ -1,6 +1,7 @@
 import multiprocessing
 import re
 from pathlib import Path
+import shutil
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,9 @@ from torch.utils.data import Dataset
 from torchvision.datasets.utils import extract_archive
 from tqdm import tqdm
 from typing import Sequence
+
+
+import src.utils as U
 
 
 class ModelNet10Dataset(Dataset):
@@ -37,7 +41,7 @@ class ModelNet10Dataset(Dataset):
         if download:
             self.download()
 
-        self.files = pd.DataFrame(columns=["shape", "split", "index", "path", "mesh", "mean", "std"])
+        self.files = pd.DataFrame(columns=["shape", "split", "path", "mesh", "mean", "std"])
 
         match shapes:
             case "all":
@@ -72,32 +76,33 @@ class ModelNet10Dataset(Dataset):
             print(f"Found non-empty {self.__class__.__name__} in {self.root}, skipping download...")
             return
 
-        url = "https://3dvision.princeton.edu/projects/2014/3DShapeNets/ModelNet10.zip"
-
-        # download the archive
-        response = requests.get(url, stream=True)
-
-        # determine total size of download
-        total_size = int(response.headers.get("Content-Length", 0))
-
         self.root.mkdir(exist_ok=True, parents=True)
+
+        url = "https://3dvision.princeton.edu/projects/2014/3DShapeNets/ModelNet10.zip"
 
         archive = self.root / "ModelNet10.zip"
         target = self.root
 
-        with open(archive, "wb") as f:
-            it = response.iter_content(chunk_size=1024 * 1024)
-            for chunk in tqdm(it, desc="Downloading", total=total_size // (1024 * 1024), unit="MiB"):
-                if chunk:
-                    f.write(chunk)
+        print(f"Downloading {url} to {archive}...")
+        U.download_file(url, archive)
 
         print(f"Extracting {archive} to {target}...")
         extract_archive(str(archive), str(target), remove_finished=True)
 
+        print(f"Cleaning up hierarchy...")
+        # structure is now root/ModelNet10/..., remove intermediate ModelNet10 folder
+        for path in target.glob("archive/*"):
+            shutil.move(str(path), str(self.root))
+
+        shutil.rmtree(str(self.root / "__MACOSX"))
+        shutil.rmtree(str(self.root / "ModelNet10"))
+
+        print("Done!")
+
     def _preload_meshes(self):
         mesh_paths = []
         for shape in self.shapes:
-            path = self.root / "ModelNet10" / shape
+            path = self.root / shape
             shape_meshes = list(path.glob("**/*.off"))
             mesh_paths.extend(shape_meshes)
 
@@ -106,7 +111,7 @@ class ModelNet10Dataset(Dataset):
         with multiprocessing.Pool() as pool:
             # this is hyper-optimized, do not touch
             processes = pool.imap_unordered(self._load_mesh, mesh_paths, chunksize=8)
-            for mesh in tqdm(processes, desc="preloading meshes", total=len(mesh_paths)):
+            for mesh in tqdm(processes, desc="Pre-Loading Meshes", total=len(mesh_paths)):
                 rows.append(mesh)
 
         self.files = pd.concat(rows, ignore_index=True)
@@ -114,17 +119,22 @@ class ModelNet10Dataset(Dataset):
         self.files = self.files.sort_values(by=["shape"]).reset_index()
 
     def _load_mesh(self, mesh_path):
-        row = {
-            "shape": mesh_path.parent.parent.name,
-            "split": mesh_path.parent.name,
-            "index": int(re.match(r".*_(\d+)\.off", mesh_path.name).group(1)),
-            "path": str(mesh_path),
-            "mesh": trimesh.load(mesh_path),
-        }
+        shape = mesh_path.parent.parent.name
+        split = mesh_path.parent.name
+        path = str(mesh_path.resolve())
+        mesh = trimesh.load(mesh_path)
+        samples = mesh.sample(self.samples).astype(np.float32)
+        mean = samples.mean(axis=0, keepdims=True)
+        std = samples.std(axis=0, keepdims=True)
 
-        samples = row["mesh"].sample(self.samples).astype(np.float32)
-        row["mean"] = samples.mean(axis=0, keepdims=True)
-        row["std"] = samples.std(axis=0, keepdims=True)
+        row = {
+            "shape": shape,
+            "split": split,
+            "path": path,
+            "mesh": mesh,
+            "mean": mean,
+            "std": std,
+        }
 
         row = {k: [v] for k, v in row.items()}
         row = pd.DataFrame(row, index=[0])
