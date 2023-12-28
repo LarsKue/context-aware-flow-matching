@@ -1,20 +1,27 @@
 # Context-Aware Flow Matching
 
-This repository contains parts of the code used in my master's thesis titled "[TBD]".
+## This site is a work in progress. Please check back later.
+
+[Repository](https://github.com/LarsKue/context-aware-flow-matching)
+
+[Pages Website](https://larskue.github.io/context-aware-flow-matching/)
+
+This repository contains parts of the code used in my master's thesis, titled
+"Advancements in Context-Aware Learning and Generative Modeling".
 
 ## 1. Introduction
 
-Context-Aware learning is defined in the thesis as deep learning using an embedding from a set of
-context inputs:
+Our approach to context-aware learning is defined in the thesis as
+deep learning using an embedding from a set of context inputs:
 
 <p align="center">
     <img src="docs/context-aware-learning.png" alt="Context-Aware Learning"/>
 </p>
 
 
-In this repo, we use [OT Flow Matching](https://arxiv.org/abs/2302.00482) to leverage this embedding and learn a
-generative model that can be conditioned on sampled context embeddings, thus enabling interpolation
-between contexts:
+In this repo, we use [Optimal Transport Flow Matching](https://arxiv.org/abs/2302.00482) to leverage this
+embedding and learn a  generative model that can be conditioned on sampled
+context embeddings, thus enabling interpolation between contexts:
 
 <p align="center">
     <img src="docs/context-aware-flow-matching.png" alt="Flow Matching" width=500 />
@@ -73,7 +80,8 @@ We can interpolate between contexts:
     <img src="docs/modelnet10/interpolation.png" alt="ModelNet10" width=500 />
 </p>
 
-The shape manifold is particularly visible when we rotate points in the latent space:
+The shape manifold is particularly visible in this video,
+where we rotate points in the latent space of the flow:
 
 <p align="center">
     <video width="500" autoplay loop playsinline>
