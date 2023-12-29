@@ -39,116 +39,6 @@ class Model(Trainable):
 
         super().__init__(hparams, *datasets)
 
-        # big networks
-
-        # self.encoder = nn.Sequential(
-        #     nn.Sequential(nn.Linear(self.hparams.features, 64), nn.SELU()),
-        #
-        #     ResidualBlock(64, 8, dropout=self.hparams.dropout),
-        #
-        #     SkipLinear(64),
-        #     pools.TopK(k=1024, dim=1),
-        #     SetNorm(64),
-        #     nn.Sequential(nn.Linear(64, 128), nn.SELU()),
-        #
-        #     ResidualBlock(128, 8, dropout=self.hparams.dropout),
-        #
-        #     SkipLinear(128),
-        #     pools.TopK(k=512, dim=1),
-        #     SetNorm(128),
-        #
-        #     ResidualBlock(128, 8, dropout=self.hparams.dropout),
-        #
-        #     SkipLinear(128),
-        #     pools.TopK(k=256, dim=1),
-        #     SetNorm(128),
-        #     nn.Sequential(nn.Linear(128, 256), nn.SELU()),
-        #
-        #     ResidualBlock(256, 8, dropout=self.hparams.dropout),
-        #
-        #     SkipLinear(256),
-        #     pools.TopK(k=128, dim=1),
-        #     SetNorm(256),
-        #
-        #     ResidualBlock(256, 8, dropout=self.hparams.dropout),
-        #
-        #     SkipLinear(256),
-        #     pools.TopK(k=64, dim=1),
-        #     SetNorm(256),
-        #     nn.Sequential(nn.Linear(256, 512), nn.SELU()),
-        #
-        #     ResidualBlock(512, 8, dropout=self.hparams.dropout),
-        #
-        #     SkipLinear(512),
-        #     pools.TopK(k=32, dim=1),
-        #     SetNorm(512),
-        #
-        #     ResidualBlock(512, 8, dropout=self.hparams.dropout),
-        #
-        #     SkipLinear(512),
-        #     pools.TopK(k=16, dim=1),
-        #     SetNorm(512),
-        #
-        #     ResidualBlock(512, 8, dropout=self.hparams.dropout),
-        #
-        #     SkipLinear(512),
-        #     pools.TopK(k=8, dim=1),
-        #     SetNorm(512),
-        #     nn.Sequential(nn.Linear(512, 1024), nn.SELU()),
-        #
-        #     ResidualBlock(1024, 4, dropout=self.hparams.dropout),
-        #
-        #     SkipLinear(1024),
-        #     pools.Mean(dim=1),
-        #     nn.Flatten(),
-        #
-        #     nn.BatchNorm1d(1024),
-        #
-        #     ResidualBlock(1024, 4, dropout=self.hparams.dropout),
-        #
-        #     nn.Sequential(nn.Linear(1024, 512), nn.SELU()),
-        #
-        #     nn.BatchNorm1d(512),
-        #
-        #     ResidualBlock(512, 4, dropout=self.hparams.dropout),
-        #
-        #     nn.Linear(512, self.hparams.embeddings),
-        # )
-        #
-        # self.flow = nn.Sequential(
-        #     nn.Sequential(nn.Linear(self.hparams.features + 1 + self.hparams.embeddings, 512), nn.SELU()),
-        #     ResidualBlock(512, 8, dropout=self.hparams.dropout),
-        #
-        #     nn.LayerNorm(512),
-        #
-        #     nn.Sequential(nn.Linear(512, 1024), nn.SELU()),
-        #     ResidualBlock(1024, 8, dropout=self.hparams.dropout),
-        #
-        #     nn.LayerNorm(1024),
-        #
-        #     nn.Sequential(nn.Linear(1024, 512), nn.SELU()),
-        #     ResidualBlock(512, 8, dropout=self.hparams.dropout),
-        #
-        #     nn.LayerNorm(512),
-        #
-        #     nn.Sequential(nn.Linear(512, 256), nn.SELU()),
-        #     ResidualBlock(256, 8, dropout=self.hparams.dropout),
-        #
-        #     nn.LayerNorm(256),
-        #
-        #     nn.Sequential(nn.Linear(256, 128), nn.SELU()),
-        #     ResidualBlock(128, 8, dropout=self.hparams.dropout),
-        #
-        #     nn.LayerNorm(128),
-        #
-        #     nn.Sequential(nn.Linear(128, 64), nn.SELU()),
-        #     ResidualBlock(64, 8, dropout=self.hparams.dropout),
-        #
-        #     nn.Linear(64, self.hparams.features),
-        # )
-
-        # medium networks (~15M params)
-
         self.encoder = nn.Sequential(
             nn.Sequential(nn.Linear(self.hparams.features, 64), nn.SELU()),
             ResidualBlock(64, 4),
@@ -239,48 +129,6 @@ class Model(Trainable):
             nn.Linear(64, self.hparams.features),
         )
 
-        # small networks for testing
-
-        # self.encoder = nn.Sequential(
-        #     nn.Sequential(nn.Linear(self.hparams.features, 64), nn.SELU()),
-        #     *[nn.Sequential(SkipLinear(64), nn.SELU()) for _ in range(2)],
-        #
-        #     SkipLinear(64),
-        #     pools.TopK(k=512, dim=1),
-        #
-        #     nn.Sequential(nn.Linear(64, 256), nn.SELU()),
-        #     *[nn.Sequential(SkipLinear(256), nn.SELU()) for _ in range(2)],
-        #
-        #     SkipLinear(256),
-        #     pools.TopK(k=128, dim=1),
-        #
-        #     nn.Sequential(nn.Linear(256, 512), nn.SELU()),
-        #     *[nn.Sequential(SkipLinear(512), nn.SELU()) for _ in range(2)],
-        #
-        #     SkipLinear(512),
-        #     pools.Mean(dim=1),
-        #     nn.Flatten(),
-        #
-        #     *[nn.Sequential(SkipLinear(512), nn.SELU()) for _ in range(4)],
-        #     nn.Linear(512, self.hparams.embeddings),
-        # )
-        #
-        # self.flow = nn.Sequential(
-        #     nn.Sequential(nn.Linear(self.hparams.features + 1 + self.hparams.embeddings, 512), nn.SELU()),
-        #     *[nn.Sequential(SkipLinear(512), nn.SELU()) for _ in range(2)],
-        #
-        #     nn.Sequential(nn.Linear(512, 256), nn.SELU()),
-        #     *[nn.Sequential(SkipLinear(256), nn.SELU()) for _ in range(2)],
-        #
-        #     nn.Sequential(nn.Linear(256, 128), nn.SELU()),
-        #     *[nn.Sequential(SkipLinear(128), nn.SELU()) for _ in range(2)],
-        #
-        #     nn.Sequential(nn.Linear(128, 64), nn.SELU()),
-        #     *[nn.Sequential(SkipLinear(64), nn.SELU()) for _ in range(2)],
-        #
-        #     nn.Linear(64, self.hparams.features),
-        # )
-
         for layer in self.encoder.modules():
             if isinstance(layer, nn.Linear):
                 nn.init.normal_(layer.weight, mean=0.0, std=1.0 / layer.out_features)
@@ -351,7 +199,7 @@ class Model(Trainable):
         else:
             steps = range(steps)
 
-        for step in steps:
+        for _ in steps:
             velocity = self.velocity(noise, t, condition)
             noise = noise + velocity * dt
             t = t + dt
