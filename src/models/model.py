@@ -206,6 +206,13 @@ class Model(Trainable):
 
         return noise
 
+    @torch.no_grad()
+    def reconstruct(self, samples: Tensor, steps: int = 100, progress: bool = False) -> Tensor:
+        noise = torch.randn_like(samples)
+        condition = self.encoder(samples)
+
+        return self.sample_from(noise, condition, steps, progress)
+
     def configure_callbacks(self):
         callbacks = super().configure_callbacks()
         callbacks.append(SampleCallback())
