@@ -8,7 +8,7 @@ from src.utils import temporary_seed
 
 
 class SampleCallback(Callback):
-    def __init__(self, num_plots: int = 4, num_samples: int = 1024, every_n_epochs: int = 1):
+    def __init__(self, num_plots: int = 4, num_samples: int = 2048, every_n_epochs: int = 2):
         self.num_plots = num_plots
         self.num_samples = num_samples
         self.every_n_epochs = every_n_epochs
@@ -21,6 +21,17 @@ class SampleCallback(Callback):
         with temporary_seed(42):
             samples = pl_module.sample((self.num_plots, self.num_samples)).cpu().numpy()
 
-        fig = viz.multiscatter(samples)
+            fig = viz.multiscatter(samples)
 
-        trainer.logger.experiment.add_figure("samples", fig, global_step=trainer.global_step)
+            trainer.logger.experiment.add_figure("samples", fig, global_step=trainer.global_step)
+
+        with temporary_seed(42):
+            samples = torch.randperm(len(pl_module.val_data))[:self.num_plots]
+            samples = torch.stack([pl_module.val_data[i] for i in samples])
+            samples = samples.to(pl_module.device)
+
+            samples = pl_module.reconstruct(samples).cpu().numpy()
+
+            fig = viz.multiscatter(samples)
+
+            trainer.logger.experiment.add_figure("reconstructions", fig, global_step=trainer.global_step)
