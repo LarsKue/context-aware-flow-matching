@@ -137,7 +137,7 @@ If this repo is useful to you in your research, please cite my thesis and relate
 
 ```
 @mastersthesis{kuehmichel2024advancements,
-    author={K{\"u}hmichel, Lars},
+    author={Lars Kühmichel},
     title={Advancements in Context-Aware Learning and Generative Modeling},
     school={Heidelberg University},
     year={2024},
