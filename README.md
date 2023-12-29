@@ -122,7 +122,30 @@ Left: Samples from the dataset. Right: Samples from the trained model.
     Evaluation metrics on the test set. The model is competitive with other state-of-the-art approaches.
 </div>
 
-
 ## 4. References
 
 See my thesis: [Advancements in Context-Aware Learning and Generative Modeling](docs/thesis.pdf)
+
+## 5. Citation
+
+If this repo is useful to you in your research, please cite my thesis and related work:
+
+```
+@mastersthesis{kuehmichel2024advancements,
+    author={K{\"u}hmichel, Lars},
+    title={Advancements in Context-Aware Learning and Generative Modeling},
+    school={Heidelberg University},
+    year={2024},
+    month={01},
+    day={22},
+}
+
+@misc{müller2023contextaware,
+      title={Towards Context-Aware Domain Generalization: Representing Environments with Permutation-Invariant Networks}, 
+      author={Jens Müller and Lars Kühmichel and Martin Rohbeck and Stefan T. Radev and Ullrich Köthe},
+      year={2023},
+      eprint={2312.10107},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
