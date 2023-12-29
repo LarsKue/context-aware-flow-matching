@@ -71,25 +71,29 @@ to train our models. Each notebook contains the hyperparameters used for trainin
     <img src="docs/modelnet10/data_samples.webp" width=25% alt="ModelNet10 Dataset Samples">
     <img src="docs/modelnet10/reconstructions.webp" width=25% alt="ModelNet10 Model Reconstructions">
     <img src="docs/modelnet10/model_samples.webp" width=25% alt="ModelNet10 Model Samples">
-
+</div>
+<div align="center">
     Left: Samples from the dataset. Middle: Model Reconstructions. Right: Samples from the trained model.
 </div>
 
 <div align="center">
     <img src="docs/modelnet10/interpolation.webp" width=50% alt="ModelNet10 Context Interpolation">
-
+</div>
+<div align="center">
     Linear interpolation between randomly sampled contextual embeddings.
 </div>
 
 <div align="center">
     <img src="docs/modelnet10/rotation.webp" width=50% alt="ModelNet10 Rotation">
-
+</div>
+<div align="center">
     Rotating points in the latent space of the flow helps visualize the shape manifold.
 </div>
 
 <div align="center">
     <img src="docs/modelnet10/metrics.webp" alt="ModelNet10 Evaluation Metrics">
-
+</div>
+<div align="center">
     Evaluation metrics on the test set. The model is competitive with other state-of-the-art approaches.
 </div>
 
@@ -104,21 +108,24 @@ Left: Samples from the dataset. Right: Samples from the trained model.
     <img src="docs/lidar-cs/data_samples.webp" width=25% alt="LIDAR-CS Dataset Samples">
     <img src="docs/lidar-cs/reconstructions.webp" width=25% alt="LIDAR-CS Model Reconstructions">
     <img src="docs/lidar-cs/model_samples.webp" width=25% alt="LIDAR-CS Model Samples">
-    
+</div>
+<div align="center">
     Left: Samples from the dataset. Middle: Model Reconstructions. Right: Samples from the trained model.
 </div>
 
 
 <div align="center">
     <img src="docs/lidar-cs/out-of-distribution.webp" width=50% alt="LIDAR-CS Out-of-Distribution Samples">
-
+</div>
+<div align="center">
     Samples from the test set of the LIDAR-CS dataset, which were marked as out-of-distribution by the model.
 </div>
 
 
 <div class="row">
     <img src="docs/lidar-cs/metrics.webp" alt="LIDAR-CS Evaluation Metrics">
-    
+</div>
+<div align="center">
     Evaluation metrics on the test set. The model is competitive with other state-of-the-art approaches.
 </div>
 
