@@ -66,9 +66,9 @@ to train our models. Each notebook contains the hyperparameters used for trainin
 **Dataset:** [ModelNet10](https://3dvision.princeton.edu/projects/2014/3DShapeNets/)
 
 <div align="center">
-    <img src="docs/modelnet10/data_samples.webp" width=25% alt="ModelNet10 Dataset Samples">
-    <img src="docs/modelnet10/reconstructions.webp" width=25% alt="ModelNet10 Model Reconstructions">
-    <img src="docs/modelnet10/model_samples.webp" width=25% alt="ModelNet10 Model Samples">
+    <img src="docs/modelnet10/data_samples.webp" width=25% alt="ModelNet10 Dataset Samples" hspace="10">
+    <img src="docs/modelnet10/reconstructions.webp" width=25% alt="ModelNet10 Model Reconstructions" hspace="10">
+    <img src="docs/modelnet10/model_samples.webp" width=25% alt="ModelNet10 Model Samples" hspace="10">
 </div>
 <div align="center">
     Left: Samples from the dataset. Middle: Model Reconstructions. Right: Samples from the trained model.
@@ -103,9 +103,9 @@ to train our models. Each notebook contains the hyperparameters used for trainin
 Left: Samples from the dataset. Right: Samples from the trained model.
 
 <div align="center">
-    <img src="docs/lidar-cs/data_samples.webp" width=25% alt="LIDAR-CS Dataset Samples">
-    <img src="docs/lidar-cs/reconstructions.webp" width=25% alt="LIDAR-CS Model Reconstructions">
-    <img src="docs/lidar-cs/model_samples.webp" width=25% alt="LIDAR-CS Model Samples">
+    <img src="docs/lidar-cs/data_samples.webp" width=25% alt="LIDAR-CS Dataset Samples" hspace="10">
+    <img src="docs/lidar-cs/reconstructions.webp" width=25% alt="LIDAR-CS Model Reconstructions" hspace="10">
+    <img src="docs/lidar-cs/model_samples.webp" width=25% alt="LIDAR-CS Model Samples" hspace="10">
 </div>
 <div align="center">
     Left: Samples from the dataset. Middle: Model Reconstructions. Right: Samples from the trained model.
