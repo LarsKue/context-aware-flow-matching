@@ -9,7 +9,7 @@ Authors: Lars Kühmichel
 [GitHub Pages Project Page](https://larskue.github.io/context-aware-flow-matching/)
 
 This repository contains parts of the code used in my master's thesis, titled
-"Advancements in Context-Aware Learning and Generative Modeling".
+[Advancements in Context-Aware Learning and Generative Modeling](docs/thesis.pdf).
 
 ## 1. Introduction
 
