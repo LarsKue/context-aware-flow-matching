@@ -57,13 +57,11 @@ Activate and verify as above.
 Note that these environments are incompatible with each other,
 because they each require different python versions.
 
-## 3. Experiments
-
 Experiment notebooks can be found in the `experiments` folder. We use
 [Lightning-Trainable](https://github.com/LarsKue/lightning-trainable)
 to train our models. Each notebook contains the hyperparameters used for training.
 
-### 3.1 ModelNet10
+## 3. ModelNet10
 
 **Dataset:** [ModelNet10](https://3dvision.princeton.edu/projects/2014/3DShapeNets/)
 
@@ -98,7 +96,7 @@ to train our models. Each notebook contains the hyperparameters used for trainin
 </div>
 
 
-### 3.2 LIDAR-CS (WIP)
+## 4. LIDAR-CS (WIP)
 
 **Dataset:** [LIDAR-CS](https://github.com/LiDAR-Perception/LiDAR-CS)
 
@@ -129,11 +127,11 @@ Left: Samples from the dataset. Right: Samples from the trained model.
     Evaluation metrics on the test set. The model is competitive with other state-of-the-art approaches.
 </div>
 
-## 4. References
+## 5. References
 
 See my thesis: [Advancements in Context-Aware Learning and Generative Modeling](docs/thesis.pdf)
 
-## 5. Citation
+## 6. Citation
 
 If this repo is useful to you in your research, please cite my thesis and related work:
 
