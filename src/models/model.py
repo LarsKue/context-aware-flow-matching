@@ -1,6 +1,7 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from torch import Size, Tensor
 
@@ -15,6 +16,8 @@ import src.utils as U
 from src.callbacks import SampleCallback
 from src.datasets import ContextAwareFlowMatchingDataset as CAFMDataset
 
+from src.integrators import Euler, RK45
+
 from . import pools
 from .skip_connection import ResidualBlock, SkipLinear
 
@@ -23,6 +26,7 @@ class ModelHParams(TrainableHParams):
     subset_size: int
 
     features: int = 3
+    conditions: int = 0
     embeddings: int = 256
 
     gamma: Range(0.0, 1.0) = 0.5
@@ -40,7 +44,7 @@ class Model(Trainable):
         super().__init__(hparams, *datasets)
 
         self.encoder = nn.Sequential(
-            nn.Sequential(nn.Linear(self.hparams.features, 64), nn.SELU()),
+            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions, 64), nn.SELU()),
             ResidualBlock(64, 4),
 
             SkipLinear(64),
@@ -108,7 +112,7 @@ class Model(Trainable):
         )
 
         self.flow = nn.Sequential(
-            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.embeddings + 1, 512), nn.SELU()),
+            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.conditions + self.hparams.embeddings + 1, 512), nn.SELU()),
             ResidualBlock(512, 8),
 
             nn.Sequential(nn.Linear(512, 1024), nn.SELU()),
@@ -141,16 +145,21 @@ class Model(Trainable):
 
         if self.hparams.checkpoint_segments is not None:
             segments = self.hparams.checkpoint_segments
-            self.encoder = U.CheckpointedSequential(*self.encoder, segments=segments)
-            self.flow = U.CheckpointedSequential(*self.flow, segments=segments)
+            # self.encoder = U.CheckpointedSequential(*self.encoder, segments=segments)
+            # self.flow = U.CheckpointedSequential(*self.flow, segments=segments)
+            self.encoder = U.CheckpointedSequential.from_nested(self.encoder, segments=segments)
+            self.flow = U.CheckpointedSequential.from_nested(self.flow, segments=segments)
+
+        print("#Layers in Encoder:", len(self.encoder))
+        print("#Layers in Flow:", len(self.flow))
 
     def compute_metrics(self, batch, batch_idx):
-        sn0, sn1, ssn0, ssn1, ssnt, t, vstar = batch
+        sn0, sn1, ssn0, ssn1, ssnt, t, vstar, shape = batch
 
-        c = self.encoder(sn1)
-        mmd = M.maximum_mean_discrepancy(c, torch.randn_like(c), scales=torch.logspace(-20, 20, base=2, steps=41))
+        embedding = self.embed(sn1, shape)
+        mmd = M.maximum_mean_discrepancy(embedding, torch.randn_like(embedding), scales=torch.logspace(-20, 20, base=2, steps=41))
 
-        v = self.velocity(ssnt, t, c)
+        v = self.velocity(ssn1, t, embedding, shape)
 
         mse = U.mean_except(torch.square(v - vstar), 0)
 
@@ -166,7 +175,17 @@ class Model(Trainable):
             mmd=mmd,
         )
 
-    def velocity(self, sn: Tensor, t: Tensor | float, c: Tensor) -> Tensor:
+    def embed(self, sn: Tensor, shape: Tensor) -> Tensor:
+        batch_size, set_size, _ = sn.shape
+
+        shape = shape.unsqueeze(1)
+        shape = U.expand_dim(shape, 1, set_size)
+
+        encoder_input = torch.cat([sn, shape], dim=2)
+
+        return self.encoder(encoder_input)
+
+    def velocity(self, sn: Tensor, t: Tensor | float, c: Tensor, shape: Tensor) -> Tensor:
         batch_size, set_size, _ = sn.shape
 
         if isinstance(t, float):
@@ -178,40 +197,59 @@ class Model(Trainable):
         c = c.unsqueeze(1)
         c = U.expand_dim(c, 1, set_size)
 
-        sntc = torch.cat([sn, t, c], dim=2)
+        shape = shape.unsqueeze(1)
+        shape = U.expand_dim(shape, 1, set_size)
+
+        sntc = torch.cat([sn, t, c, shape], dim=2)
 
         return self.flow(sntc)
 
     @torch.no_grad()
-    def sample(self, sample_shape: Size = (1,), steps: int = 100, progress: bool = False) -> Tensor:
-        sn = torch.randn(sample_shape[0], sample_shape[1], self.hparams.features, device=self.device)
-        c = torch.randn(sample_shape[0], self.hparams.embeddings, device=self.device)
+    def sample(self, sample_shape: Size = (1, 128), integrator: str = "euler", steps: int = 100, progress: bool = False) -> Tensor:
+        batch_size, set_size = sample_shape
 
-        return self.sample_from(sn, c, steps=steps, progress=progress)
+        noise = self._sample_noise(sample_shape)
+        embedding = self._sample_embedding(sample_shape)
+        shape = self._sample_shape(sample_shape)
 
-    @torch.no_grad()
-    def sample_from(self, noise: Tensor, condition: Tensor, steps: int = 100, progress: bool = False) -> Tensor:
-        t = 0.0
-        dt = 1.0 / steps
-
-        if progress:
-            steps = trange(steps)
-        else:
-            steps = range(steps)
-
-        for _ in steps:
-            velocity = self.velocity(noise, t, condition)
-            noise = noise + velocity * dt
-            t = t + dt
-
-        return noise
+        return self.sample_from(noise, embedding, shape, integrator=integrator, steps=steps, progress=progress)
 
     @torch.no_grad()
-    def reconstruct(self, samples: Tensor, steps: int = 100, progress: bool = False) -> Tensor:
+    def _sample_noise(self, sample_shape: Size = (1, 128)) -> Tensor:
+        batch_size, set_size = sample_shape
+        return torch.randn(batch_size, set_size, self.hparams.features, device=self.device)
+
+    @torch.no_grad()
+    def _sample_embedding(self, sample_shape: Size = (1, 128)) -> Tensor:
+        batch_size, set_size = sample_shape
+        return torch.randn(batch_size, self.hparams.embeddings, device=self.device)
+
+    @torch.no_grad()
+    def _sample_shape(self, sample_shape: Size = (1, 128)) -> Tensor:
+        batch_size, set_size = sample_shape
+        shapes = torch.randint(0, self.conditions, size=batch_size, device=self.device)
+        shapes = F.one_hot(shapes, num_classes=self.conditions).float()
+
+        return shapes
+
+    @torch.no_grad()
+    def sample_from(self, noise: Tensor, embedding: Tensor, shape: Tensor, integrator: str = "euler", steps: int = 100, progress: bool = False) -> Tensor:
+        match integrator:
+            case "euler":
+                integrator = Euler(self.velocity, steps=steps)
+            case "rk45":
+                integrator = RK45(self.velocity, steps=steps)
+            case _:
+                raise ValueError(f"Unknown integrator: {integrator}")
+
+        return integrator.solve(noise, embedding, shape, progress=progress)
+
+    @torch.no_grad()
+    def reconstruct(self, samples: Tensor, shape: Tensor, integrator: str = "euler", steps: int = 100, progress: bool = False) -> Tensor:
         noise = torch.randn_like(samples)
-        condition = self.encoder(samples)
+        embedding = self.embed(samples, shape)
 
-        return self.sample_from(noise, condition, steps, progress)
+        return self.sample_from(noise, embedding, shape, integrator=integrator, steps=steps, progress=progress)
 
     def configure_callbacks(self):
         callbacks = super().configure_callbacks()

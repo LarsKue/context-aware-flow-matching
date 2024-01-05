@@ -1,8 +1,11 @@
 
+import torch
 import matplotlib.pyplot as plt
 
 import numpy as np
 import seaborn as sns
+
+import src.utils as U
 
 from .rainbow import Rainbow
 
@@ -36,6 +39,17 @@ def scatter_bp(samples: np.ndarray, ax=None, **render_kwargs):
     if ax is None:
         ax = plt.axes()
 
+    img = render_bp(samples, **render_kwargs)
+
+    sns.set_style("whitegrid", {"axes.grid": False})
+
+    artist = ax.imshow(img)
+    ax.set_axis_off()
+
+    return artist
+
+
+def render_bp(samples: np.ndarray, name: str = "_.png", **render_kwargs):
     try:
         import blender_plot as bp
     except ImportError:
@@ -44,12 +58,15 @@ def scatter_bp(samples: np.ndarray, ax=None, **render_kwargs):
 
     import sys
 
-    sns.set_style("whitegrid", {"axes.grid": False})
     set_size, *_ = samples.shape
 
     render_kwargs.setdefault("resolution", (800, 800))
 
     scene = bp.DefaultScene()
+
+    angles = torch.zeros(set_size, 3)
+    angles[:, 2] = 90
+    samples = U.rotate(torch.from_numpy(samples), angles).numpy()
 
     scene.scatter(samples)
 
@@ -57,14 +74,10 @@ def scatter_bp(samples: np.ndarray, ax=None, **render_kwargs):
     sys.stdout.write = lambda *args, **kwargs: None
 
     # this is super verbose, so we disable output
-    scene.render("_.png")
+    scene.render(name, **render_kwargs)
 
     sys.stdout.write = stdout
 
     scene.clear()
 
-    ax.imshow(plt.imread("_.png"))
-    ax.set_axis_off()
-
-
-
+    return plt.imread(name)

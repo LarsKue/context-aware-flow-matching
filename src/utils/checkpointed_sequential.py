@@ -12,3 +12,19 @@ class CheckpointedSequential(nn.Sequential):
 
     def forward(self, x):
         return checkpoint_sequential(self, self.segments.item(), x, use_reentrant=False)
+
+    @classmethod
+    def _layers_from_nested(cls, sequential: nn.Sequential):
+        layers = []
+        for layer in sequential:
+            if isinstance(layer, nn.Sequential):
+                layers.extend(cls._layers_from_nested(layer))
+            else:
+                layers.append(layer)
+
+        return layers
+
+    @classmethod
+    def from_nested(cls, sequential: nn.Sequential, segments: int):
+        layers = cls._layers_from_nested(sequential)
+        return cls(*layers, segments=segments)

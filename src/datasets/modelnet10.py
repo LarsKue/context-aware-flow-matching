@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import requests
 import torch
+import torch.nn.functional as F
 import trimesh
 from torch.utils.data import Dataset
 from torchvision.datasets.utils import extract_archive
@@ -57,6 +58,8 @@ class ModelNet10Dataset(Dataset):
         if unknown_shapes:
             raise ValueError(f"Unknown shapes: {unknown_shapes}")
 
+        self._shape_conditions = {shape: F.one_hot(torch.tensor(i)).float() for i, shape in enumerate(sorted(self.shapes))}
+
         self._preload_meshes()
 
     def __getitem__(self, item):
@@ -66,7 +69,10 @@ class ModelNet10Dataset(Dataset):
         points = mesh.sample(self.samples).astype(np.float32)
         points = (points - row["mean"]) / row["std"]
 
-        return torch.from_numpy(points)
+        shape = row["shape"]
+        condition = self._shape_conditions[shape].clone()
+
+        return torch.from_numpy(points), condition
 
     def __len__(self):
         return len(self.files)

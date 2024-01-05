@@ -24,7 +24,7 @@ class ContextAwareFlowMatchingDataset(Dataset):
         self.subset_size = subset_size
 
     def __getitem__(self, item):
-        sn1 = self.inner[item]
+        sn1, shape = self.inner[item]
 
         sn0 = torch.randn_like(sn1)
 
@@ -41,7 +41,7 @@ class ContextAwareFlowMatchingDataset(Dataset):
 
         vstar = ssn1 - ssn0
 
-        return sn0, sn1, ssn0, ssn1, ssnt, t, vstar
+        return sn0, sn1, ssn0, ssn1, ssnt, t, vstar, shape
 
     def __len__(self):
         return len(self.inner)
