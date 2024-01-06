@@ -15,6 +15,8 @@ import src.utils as U
 from src.callbacks import SampleCallback
 from src.datasets import ContextAwareFlowMatchingDataset as CAFMDataset
 
+from src.integrators import Euler, RK45
+
 from . import pools
 from .skip_connection import ResidualBlock, SkipLinear
 
@@ -144,10 +146,10 @@ class Model(Trainable):
     def compute_metrics(self, batch, batch_idx):
         sn0, sn1, ssn0, ssn1, ssnt, t, vstar = batch
 
-        c = self.encoder(sn1)
-        mmd = M.maximum_mean_discrepancy(c, torch.randn_like(c), scales=torch.logspace(-20, 20, base=2, steps=41))
+        embedding = self.embed(sn1)
+        mmd = M.maximum_mean_discrepancy(embedding, torch.randn_like(embedding), scales=torch.logspace(-20, 20, base=2, steps=41))
 
-        v = self.velocity(ssnt, t, c)
+        v = self.velocity(ssnt, t, embedding)
 
         mse = U.mean_except(torch.square(v - vstar), 0)
 
@@ -163,52 +165,63 @@ class Model(Trainable):
             mmd=mmd,
         )
 
-    def velocity(self, sn: Tensor, t: Tensor | float, c: Tensor) -> Tensor:
-        batch_size, set_size, _ = sn.shape
+    def embed(self, samples: Tensor) -> Tensor:
+        batch_size, set_size, _ = samples.shape
+        return self.encoder(samples)
+
+    def velocity(self, x: Tensor, t: Tensor | float, embedding: Tensor) -> Tensor:
+        batch_size, set_size, _ = x.shape
 
         if isinstance(t, float):
             t = torch.full((batch_size,), fill_value=t, device=self.device)
 
-        t = U.unsqueeze_right(t, sn.dim() - t.dim())
+        t = U.unsqueeze_right(t, x.dim() - t.dim())
         t = U.expand_dim(t, 1, set_size)
 
-        c = c.unsqueeze(1)
-        c = U.expand_dim(c, 1, set_size)
+        embedding = embedding.unsqueeze(1)
+        embedding = U.expand_dim(embedding, 1, set_size)
 
-        sntc = torch.cat([sn, t, c], dim=2)
+        sntc = torch.cat([x, t, embedding], dim=2)
 
         return self.flow(sntc)
 
     @torch.no_grad()
-    def sample(self, sample_shape: Size = (1,), steps: int = 100, progress: bool = False) -> Tensor:
-        sn = torch.randn(sample_shape[0], sample_shape[1], self.hparams.features, device=self.device)
-        c = torch.randn(sample_shape[0], self.hparams.embeddings, device=self.device)
+    def sample(self, sample_shape: Size = (1, 128), integrator: str = "euler", steps: int = 100, progress: bool = False) -> Tensor:
+        batch_size, set_size = sample_shape
+        noise = self._sample_noise(Size((batch_size, set_size)))
+        embedding = self._sample_embedding(Size((batch_size,)))
 
-        return self.sample_from(sn, c, steps=steps, progress=progress)
-
-    @torch.no_grad()
-    def sample_from(self, noise: Tensor, condition: Tensor, steps: int = 100, progress: bool = False) -> Tensor:
-        t = 0.0
-        dt = 1.0 / steps
-
-        if progress:
-            steps = trange(steps)
-        else:
-            steps = range(steps)
-
-        for _ in steps:
-            velocity = self.velocity(noise, t, condition)
-            noise = noise + velocity * dt
-            t = t + dt
-
-        return noise
+        return self.sample_from(noise, embedding, integrator=integrator, steps=steps, progress=progress)
 
     @torch.no_grad()
-    def reconstruct(self, samples: Tensor, steps: int = 100, progress: bool = False) -> Tensor:
-        noise = torch.randn_like(samples)
-        condition = self.encoder(samples)
+    def _sample_noise(self, sample_shape: Size = (1, 128)) -> Tensor:
+        batch_size, set_size = sample_shape
+        return torch.randn(batch_size, set_size, self.hparams.features, device=self.device)
 
-        return self.sample_from(noise, condition, steps, progress)
+    @torch.no_grad()
+    def _sample_embedding(self, sample_shape: Size = (1,)) -> Tensor:
+        batch_size, = sample_shape
+        return torch.randn(batch_size, self.hparams.embeddings, device=self.device)
+
+    @torch.no_grad()
+    def sample_from(self, noise: Tensor, embedding: Tensor, integrator: str = "euler", steps: int = 100, progress: bool = False) -> Tensor:
+        match integrator:
+            case "euler":
+                integrator = Euler(self.velocity, steps=steps)
+            case "rk45":
+                integrator = RK45(self.velocity, steps=steps)
+            case _:
+                raise ValueError(f"Unknown integrator: {integrator}")
+
+        return integrator.solve(noise, embedding, progress=progress)
+
+    @torch.no_grad()
+    def reconstruct(self, samples: Tensor, integrator: str = "euler", steps: int = 100, progress: bool = False) -> Tensor:
+        batch_size, set_size, _ = samples.shape
+        noise = self._sample_noise(Size((batch_size, set_size)))
+        embedding = self.embed(samples)
+
+        return self.sample_from(noise, embedding, integrator=integrator, steps=steps, progress=progress)
 
     def configure_callbacks(self):
         callbacks = super().configure_callbacks()
