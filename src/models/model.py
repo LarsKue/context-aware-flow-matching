@@ -141,8 +141,8 @@ class Model(Trainable):
 
         if self.hparams.checkpoint_segments is not None:
             segments = self.hparams.checkpoint_segments
-            self.encoder = U.CheckpointedSequential(*self.encoder, segments=segments)
-            self.flow = U.CheckpointedSequential(*self.flow, segments=segments)
+            self.encoder = U.CheckpointedSequential.from_nested(self.encoder, segments=segments)
+            self.flow = U.CheckpointedSequential.from_nested(self.flow, segments=segments)
 
     def compute_metrics(self, batch, batch_idx):
         sn0, sn1, ssn0, ssn1, ssnt, t, vstar = batch
