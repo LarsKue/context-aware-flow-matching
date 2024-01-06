@@ -101,12 +101,9 @@ class Model(Trainable):
             pools.Mean(dim=1),
             nn.Flatten(),
 
-            ResidualBlock(1024, 8),
+            ResidualBlock(1024, 12),
 
-            nn.Sequential(nn.Linear(1024, 512), nn.SELU()),
-            ResidualBlock(512, 4),
-
-            nn.Linear(512, self.hparams.embeddings),
+            nn.Linear(1024, self.hparams.embeddings),
         )
 
         self.flow = nn.Sequential(
