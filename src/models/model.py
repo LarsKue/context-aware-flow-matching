@@ -108,11 +108,8 @@ class Model(Trainable):
         )
 
         self.flow = nn.Sequential(
-            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.embeddings + 1, 512), nn.SELU()),
-            ResidualBlock(512, 8),
-
-            nn.Sequential(nn.Linear(512, 1024), nn.SELU()),
-            ResidualBlock(1024, 8),
+            nn.Sequential(nn.Linear(self.hparams.features + self.hparams.embeddings + 1, 1024), nn.SELU()),
+            ResidualBlock(1024, 16),
 
             nn.Sequential(nn.Linear(1024, 512), nn.SELU()),
             ResidualBlock(512, 8),
