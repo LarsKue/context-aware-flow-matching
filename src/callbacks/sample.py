@@ -27,7 +27,7 @@ class SampleCallback(Callback):
 
         with temporary_seed(42):
             samples = torch.randperm(len(pl_module.val_data))[:self.num_plots]
-            samples = torch.stack([pl_module.val_data[i] for i in samples])
+            samples = torch.stack([pl_module.val_data[i][1] for i in samples])
             samples = samples.to(pl_module.device)
 
             samples = pl_module.reconstruct(samples).cpu().numpy()
