@@ -48,7 +48,7 @@ def rotate(x: Tensor, angles: Tensor) -> Tensor:
 
     angles = torch.deg2rad(angles)
 
-    rotations = torch.empty((*batch_shape, 3, 3))
+    rotations = torch.empty((*batch_shape, 3, 3), device=x.device)
 
     alpha, beta, gamma = torch.unbind(angles, dim=-1)
     rotations[..., 0, 0] = torch.cos(beta) * torch.cos(gamma)
