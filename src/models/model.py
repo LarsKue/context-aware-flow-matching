@@ -35,11 +35,9 @@ class ModelHParams(TrainableHParams):
 class Model(Trainable):
     hparams: ModelHParams
 
-    def __init__(self, hparams, *datasets):
-        hparams = self.hparams_type(**hparams)
-        datasets = [CAFMDataset(d, hparams.subset_size) for d in datasets]
-
-        super().__init__(hparams, *datasets)
+    def __init__(self, hparams, *args, **kwargs):
+        super().__init__(hparams, *args, **kwargs)
+        self._convert_datasets()
 
         self.encoder = nn.Sequential(
             nn.Sequential(nn.Linear(self.hparams.features, 64), nn.SELU()),
@@ -140,7 +138,20 @@ class Model(Trainable):
             self.encoder = U.CheckpointedSequential.from_nested(self.encoder, segments=segments)
             self.flow = U.CheckpointedSequential.from_nested(self.flow, segments=segments)
 
-    def compute_metrics(self, batch, batch_idx):
+    def _convert_datasets(self):
+        if self.train_data is not None:
+            if not isinstance(self.train_data, CAFMDataset):
+                self.train_data = CAFMDataset(self.train_data, self.hparams.subset_size)
+
+        if self.val_data is not None:
+            if not isinstance(self.val_data, CAFMDataset):
+                self.val_data = CAFMDataset(self.val_data, self.hparams.subset_size)
+
+        if self.test_data is not None:
+            if not isinstance(self.test_data, CAFMDataset):
+                self.test_data = CAFMDataset(self.test_data, self.hparams.subset_size)
+
+    def training_metrics(self, batch, batch_idx):
         sn0, sn1, ssn0, ssn1, ssnt, t, vstar = batch
 
         embedding = self.embed(sn1)
