@@ -45,7 +45,7 @@ class ModelNet10Dataset(Dataset):
 
         match shapes:
             case "all":
-                self.shapes = self.SHAPES
+                self.shapes = self.SHAPES.copy()
             case list() | set() | tuple() as multiple_shapes:
                 self.shapes = set(multiple_shapes)
             case str() as single_shape:
@@ -124,8 +124,9 @@ class ModelNet10Dataset(Dataset):
         path = str(mesh_path.resolve())
         mesh = trimesh.load(mesh_path)
         samples = mesh.sample(self.samples).astype(np.float32)
-        mean = samples.mean(axis=0, keepdims=True)
-        std = samples.std(axis=0, keepdims=True)
+        mean = samples.mean(0, keepdims=True)
+        # take only one standard deviation to avoid distortions
+        std = samples.std(keepdims=True)
 
         row = {
             "shape": shape,
