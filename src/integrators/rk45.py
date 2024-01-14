@@ -20,12 +20,12 @@ class RK45(FixedStepSizeIntegrator):
     """
 
     @torch.no_grad()
-    def _dx(self, x: Tensor, t: float, *conditions: Tensor) -> Tensor:
+    def _dx(self, x: Tensor, t: float, *args, **kwargs) -> Tensor:
         dt = self._dt()
 
-        k1 = self.f(x, t, *conditions)
-        k2 = self.f(x + dt * 0.5 * k1, t + 0.5 * dt, *conditions)
-        k3 = self.f(x + dt * 0.5 * k2, t + 0.5 * dt, *conditions)
-        k4 = self.f(x + dt * k3, t + dt, *conditions)
+        k1 = self.f(x, t, *args, **kwargs)
+        k2 = self.f(x + dt * 0.5 * k1, t + 0.5 * dt, *args, **kwargs)
+        k3 = self.f(x + dt * 0.5 * k2, t + 0.5 * dt, *args, **kwargs)
+        k4 = self.f(x + dt * k3, t + dt, *args, **kwargs)
 
         return (k1 + 2.0 * k2 + 2.0 * k3 + k4) * dt / 6.0

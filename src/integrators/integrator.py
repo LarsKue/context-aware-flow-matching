@@ -2,14 +2,12 @@
 import torch
 from torch import Tensor
 
-from typing import Protocol
+from typing import Protocol, Callable
 
 from tqdm import tqdm
 
 
-class Integratable(Protocol):
-    def __call__(self, x: Tensor, t: float, *conditions: Tensor) -> Tensor:
-        raise NotImplementedError
+Integratable = Callable[[Tensor, float, ...], Tensor]
 
 
 class Integrator:
@@ -18,25 +16,51 @@ class Integrator:
 
     dx = f(x, t, c) dt
     """
+
+    BAR_FORMAT: str = "{l_bar}{bar}| {n:.3g}/{total:.3g} [{elapsed}<{remaining}]"
+
     def __init__(self, f: Integratable, t0: float, t1: float):
         self.f = f
         self.t0 = t0
         self.t1 = t1
 
     @torch.no_grad()
-    def _dxdt(self, x: Tensor, t: float, *conditions: Tensor) -> (Tensor, float):
+    def _dxdt(self, x: Tensor, t: float, *args, **kwargs) -> (Tensor, float):
         raise NotImplementedError
 
     @torch.no_grad()
-    def solve(self, x: Tensor, *conditions: Tensor, progress: bool = False) -> Tensor:
-        x = x.clone()
+    def trajectory(self, x: Tensor, *args, progress: bool = False, **kwargs) -> Tensor:
+        x = x.clone().detach()
 
         if progress:
-            pbar = tqdm(total=self.t1 - self.t0, desc="Solving ODE", bar_format="{n:.3g}")
+            pbar = tqdm(total=self.t1 - self.t0, desc="Computing trajectory", bar_format=self.BAR_FORMAT)
+
+        t = self.t0
+        trajectory = [x.clone()]
+        while t < self.t1:
+            dx, dt = self._dxdt(x, t, *args, **kwargs)
+
+            x += dx
+            t += dt
+
+            trajectory.append(x.clone())
+
+            if progress:
+                # noinspection PyUnboundLocalVariable
+                pbar.update(dt)
+
+        return torch.stack(trajectory)
+
+    @torch.no_grad()
+    def solve(self, x: Tensor, *args, progress: bool = False, **kwargs) -> Tensor:
+        x = x.clone().detach()
+
+        if progress:
+            pbar = tqdm(total=self.t1 - self.t0, desc="Solving ODE", bar_format=self.BAR_FORMAT)
 
         t = self.t0
         while t < self.t1:
-            dx, dt = self._dxdt(x, t, *conditions)
+            dx, dt = self._dxdt(x, t, *args, **kwargs)
 
             x += dx
             t += dt
@@ -58,9 +82,9 @@ class FixedStepSizeIntegrator(Integrator):
         return (self.t1 - self.t0) / self.steps
 
     @torch.no_grad()
-    def _dx(self, x: Tensor, t: float, *conditions: Tensor) -> Tensor:
+    def _dx(self, x: Tensor, t: float, *args, **kwargs) -> Tensor:
         raise NotImplementedError
 
     @torch.no_grad()
-    def _dxdt(self, x: Tensor, t: float, *conditions: Tensor) -> (Tensor, float):
-        return self._dx(x, t, *conditions), self._dt()
+    def _dxdt(self, x: Tensor, t: float, *args, **kwargs) -> (Tensor, float):
+        return self._dx(x, t, *args, **kwargs), self._dt()
