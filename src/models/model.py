@@ -167,11 +167,79 @@ class Model(Trainable):
         mse = mse.mean(0)
         mmd = mmd.mean(0)
 
-        return dict(
+        metrics = dict(
             loss=loss,
             mse=mse,
             mmd=mmd,
         )
+
+        return metrics
+
+    @torch.no_grad()
+    def _test_metrics(self, samples: Tensor, target: Tensor) -> dict:
+        batch_size, set_size, _ = samples.shape
+
+        cd = M.chamfer_distance(samples, target)
+        # emd = M.earth_movers_distance(samples, target)
+        # jsd = M.jensen_shannon_divergence(samples, target)
+        mmd = torch.vmap(M.maximum_mean_discrepancy)(samples, target, scales=torch.logspace(-20, 20, base=2, steps=41))
+
+        cd = cd.mean(0)
+        # emd = emd.mean(0)
+        # jsd = jsd.mean(0)
+        mmd = mmd.mean((0, 1))
+
+        metrics = dict(
+            chamfer_distance=cd,
+            # earth_movers_distance=emd,
+            # jensen_shannon_divergence=jsd,
+            maximum_mean_discrepancy=mmd,
+        )
+
+        return metrics
+
+        # TODO: Implement these metrics
+        cov_cd = M.coverage(samples, target, M.chamfer_distance)
+        cov_emd = M.coverage(samples, target, M.earth_movers_distance)
+
+        mmd_cd = M.minimum_matching_distance(samples, target, M.chamfer_distance)
+        mmd_emd = M.minimum_matching_distance(samples, target, M.earth_movers_distance)
+
+        nnd_cd = M.nearest_neighbor_distance(samples, target, M.chamfer_distance)
+        nnd_emd = M.nearest_neighbor_distance(samples, target, M.earth_movers_distance)
+
+        metrics = dict(
+            chamfer_distance=cd,
+            earth_movers_distance=emd,
+            jensen_shannon_divergence=jsd,
+            maximum_mean_discrepancy=mmd,
+            coverage_chamfer_distance=cov_cd,
+            coverage_earth_movers_distance=cov_emd,
+            minimum_matching_distance_chamfer_distance=mmd_cd,
+            minimum_matching_distance_earth_movers_distance=mmd_emd,
+            nearest_neighbor_distance_chamfer_distance=nnd_cd,
+            nearest_neighbor_distance_earth_movers_distance=nnd_emd,
+        )
+
+        return metrics
+
+    @torch.no_grad()
+    def test_metrics(self, batch, batch_idx):
+        sn0, sn1, ssn0, ssn1, ssnt, t, vstar = batch
+
+        samples = self.sample(sn1.shape[:2], integrator="euler", steps=100, progress=False)
+        sample_metrics = self._test_metrics(samples, sn1)
+
+        reconstruction = self.reconstruct(sn1, integrator="euler", steps=100, progress=False)
+        reconstruction_metrics = self._test_metrics(reconstruction, sn1)
+
+        metrics = {
+            **self.validation_metrics(batch, batch_idx),
+            **{f"samples/{k}": v for k, v in sample_metrics.items()},
+            **{f"reconstruction/{k}": v for k, v in reconstruction_metrics.items()},
+        }
+
+        return metrics
 
     def embed(self, samples: Tensor) -> Tensor:
         batch_size, set_size, _ = samples.shape
@@ -196,23 +264,23 @@ class Model(Trainable):
     @torch.no_grad()
     def sample(self, sample_shape: Size = (1, 128), integrator: str = "euler", steps: int = 100, progress: bool = False) -> Tensor:
         batch_size, set_size = sample_shape
-        noise = self._sample_noise(Size((batch_size, set_size)))
-        embedding = self._sample_embedding(Size((batch_size,)))
+        noise = self.sample_noise(Size((batch_size, set_size)))
+        embedding = self.sample_embedding(Size((batch_size,)))
 
         return self.sample_from(noise, embedding, integrator=integrator, steps=steps, progress=progress)
 
     @torch.no_grad()
-    def _sample_noise(self, sample_shape: Size = (1, 128)) -> Tensor:
+    def sample_noise(self, sample_shape: Size = (1, 128)) -> Tensor:
         batch_size, set_size = sample_shape
         return torch.randn(batch_size, set_size, self.hparams.features, device=self.device)
 
     @torch.no_grad()
-    def _sample_embedding(self, sample_shape: Size = (1,)) -> Tensor:
+    def sample_embedding(self, sample_shape: Size = (1,)) -> Tensor:
         batch_size, = sample_shape
         return torch.randn(batch_size, self.hparams.embeddings, device=self.device)
 
     @torch.no_grad()
-    def sample_from(self, noise: Tensor, embedding: Tensor, integrator: str = "euler", steps: int = 100, progress: bool = False) -> Tensor:
+    def sample_from(self, noise: Tensor, embedding: Tensor, integrator: str = "euler", steps: int = 100, progress: bool = False, trajectory: bool = False) -> Tensor:
         match integrator:
             case "euler":
                 integrator = Euler(self.velocity, steps=steps)
@@ -221,15 +289,19 @@ class Model(Trainable):
             case _:
                 raise ValueError(f"Unknown integrator: {integrator}")
 
+        if trajectory:
+            return integrator.trajectory(noise, embedding, progress=progress)
+
         return integrator.solve(noise, embedding, progress=progress)
 
     @torch.no_grad()
-    def reconstruct(self, samples: Tensor, integrator: str = "euler", steps: int = 100, progress: bool = False) -> Tensor:
-        batch_size, set_size, _ = samples.shape
-        noise = self._sample_noise(Size((batch_size, set_size)))
+    def reconstruct(self, samples: Tensor, set_size: int = None, integrator: str = "euler", steps: int = 100, progress: bool = False, trajectory: bool = False) -> Tensor:
+        batch_size, samples_set_size, _ = samples.shape
+        set_size = set_size or samples_set_size
+        noise = self.sample_noise(Size((batch_size, set_size)))
         embedding = self.embed(samples)
 
-        return self.sample_from(noise, embedding, integrator=integrator, steps=steps, progress=progress)
+        return self.sample_from(noise, embedding, integrator=integrator, steps=steps, progress=progress, trajectory=trajectory)
 
     def configure_callbacks(self):
         callbacks = super().configure_callbacks()
