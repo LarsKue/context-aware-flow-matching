@@ -9,8 +9,8 @@ def chamfer_distance(x: Tensor, y: Tensor) -> Tensor:
     between each point in x and its nearest neighbor in y.
     Parameters
     ----------
-    x: Tensor of shape (..., D)
-    y: Tensor of shape (..., D)
+    x: Tensor of shape (..., S, D)
+    y: Tensor of shape (..., S, D)
 
     Returns
     -------
@@ -20,7 +20,7 @@ def chamfer_distance(x: Tensor, y: Tensor) -> Tensor:
 
     pairwise_distances = torch.sum(torch.square(residuals), dim=-1)
 
-    first = torch.min(pairwise_distances, dim=-1)[0]
-    second = torch.min(pairwise_distances, dim=-2)[0]
+    first = torch.min(pairwise_distances, dim=0).values
+    second = torch.min(pairwise_distances, dim=1).values
 
-    return first + second
+    return first.sum(-1) + second.sum(-1)
