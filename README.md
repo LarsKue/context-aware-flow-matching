@@ -71,7 +71,7 @@ to train our models. Each notebook contains the hyperparameters used for trainin
     <img src="docs/modelnet10/model_samples.webp" width=25% alt="ModelNet10 Model Samples" hspace="10">
 </div>
 <div align="center">
-    Left: Samples from the dataset. Middle: Model Reconstructions. Right: Samples from the trained model.
+    Left: Samples from the dataset. Middle: Model Reconstructions. Right: Random samples from the trained model.
 </div>
 
 <div align="center">
@@ -96,36 +96,11 @@ to train our models. Each notebook contains the hyperparameters used for trainin
 </div>
 
 
-## 4. LIDAR-CS (WIP)
+## 4. LIDAR-CS
+
+This is not part of the thesis, but I may revisit this dataset in the future.
 
 **Dataset:** [LIDAR-CS](https://github.com/LiDAR-Perception/LiDAR-CS)
-
-Left: Samples from the dataset. Right: Samples from the trained model.
-
-<div align="center">
-    <img src="docs/lidar-cs/data_samples.webp" width=25% alt="LIDAR-CS Dataset Samples" hspace="10">
-    <img src="docs/lidar-cs/reconstructions.webp" width=25% alt="LIDAR-CS Model Reconstructions" hspace="10">
-    <img src="docs/lidar-cs/model_samples.webp" width=25% alt="LIDAR-CS Model Samples" hspace="10">
-</div>
-<div align="center">
-    Left: Samples from the dataset. Middle: Model Reconstructions. Right: Samples from the trained model.
-</div>
-
-
-<div align="center">
-    <img src="docs/lidar-cs/out-of-distribution.webp" width=50% alt="LIDAR-CS Out-of-Distribution Samples">
-</div>
-<div align="center">
-    Samples from the test set of the LIDAR-CS dataset, which were marked as out-of-distribution by the model.
-</div>
-
-
-<div class="row">
-    <img src="docs/lidar-cs/metrics.webp" alt="LIDAR-CS Evaluation Metrics">
-</div>
-<div align="center">
-    Evaluation metrics on the test set. The model is competitive with other state-of-the-art approaches.
-</div>
 
 ## 5. References
 
