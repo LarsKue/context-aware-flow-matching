@@ -64,8 +64,9 @@ def render_bp(samples: np.ndarray, name: str = "_.png", **render_kwargs):
 
     scene = bp.DefaultScene()
 
-    angles = torch.zeros(set_size, 3)
-    angles[:, 2] = 90
+    angles = torch.Tensor([0, 0, -90])
+    angles = angles.unsqueeze(0)
+    angles = U.expand_dim(angles, 0, set_size)
     samples = U.rotate(torch.from_numpy(samples), angles).numpy()
 
     scene.scatter(samples)
