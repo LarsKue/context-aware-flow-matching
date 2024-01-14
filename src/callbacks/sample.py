@@ -8,7 +8,7 @@ from src.utils import temporary_seed
 
 
 class SampleCallback(Callback):
-    def __init__(self, num_plots: int = 4, num_samples: int = 2048, every_n_epochs: int = 2):
+    def __init__(self, num_plots: int = 16, num_samples: int = 2048, every_n_epochs: int = 1):
         self.num_plots = num_plots
         self.num_samples = num_samples
         self.every_n_epochs = every_n_epochs
