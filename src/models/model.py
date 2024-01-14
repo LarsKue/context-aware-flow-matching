@@ -31,6 +31,8 @@ class ModelHParams(TrainableHParams):
 
     checkpoint_segments: int | None = None
 
+    optimal_transport: dict | None = None
+
 
 class Model(Trainable):
     hparams: ModelHParams
@@ -141,15 +143,15 @@ class Model(Trainable):
     def _convert_datasets(self):
         if self.train_data is not None:
             if not isinstance(self.train_data, CAFMDataset):
-                self.train_data = CAFMDataset(self.train_data, self.hparams.subset_size)
+                self.train_data = CAFMDataset(self.train_data, self.hparams.subset_size, optimal_transport_kwargs=self.hparams.optimal_transport)
 
         if self.val_data is not None:
             if not isinstance(self.val_data, CAFMDataset):
-                self.val_data = CAFMDataset(self.val_data, self.hparams.subset_size)
+                self.val_data = CAFMDataset(self.val_data, self.hparams.subset_size, optimal_transport_kwargs=self.hparams.optimal_transport)
 
         if self.test_data is not None:
             if not isinstance(self.test_data, CAFMDataset):
-                self.test_data = CAFMDataset(self.test_data, self.hparams.subset_size)
+                self.test_data = CAFMDataset(self.test_data, self.hparams.subset_size, optimal_transport_kwargs=self.hparams.optimal_transport)
 
     def training_metrics(self, batch, batch_idx):
         sn0, sn1, ssn0, ssn1, ssnt, t, vstar = batch
