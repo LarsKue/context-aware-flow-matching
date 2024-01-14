@@ -180,45 +180,14 @@ class Model(Trainable):
         batch_size, set_size, _ = samples.shape
 
         cd = M.chamfer_distance(samples, target)
-        # emd = M.earth_movers_distance(samples, target)
-        # jsd = M.jensen_shannon_divergence(samples, target)
         mmd = torch.vmap(M.maximum_mean_discrepancy)(samples, target, scales=torch.logspace(-20, 20, base=2, steps=41))
 
         cd = cd.mean(0)
-        # emd = emd.mean(0)
-        # jsd = jsd.mean(0)
         mmd = mmd.mean((0, 1))
 
         metrics = dict(
             chamfer_distance=cd,
-            # earth_movers_distance=emd,
-            # jensen_shannon_divergence=jsd,
             maximum_mean_discrepancy=mmd,
-        )
-
-        return metrics
-
-        # TODO: Implement these metrics
-        cov_cd = M.coverage(samples, target, M.chamfer_distance)
-        cov_emd = M.coverage(samples, target, M.earth_movers_distance)
-
-        mmd_cd = M.minimum_matching_distance(samples, target, M.chamfer_distance)
-        mmd_emd = M.minimum_matching_distance(samples, target, M.earth_movers_distance)
-
-        nnd_cd = M.nearest_neighbor_distance(samples, target, M.chamfer_distance)
-        nnd_emd = M.nearest_neighbor_distance(samples, target, M.earth_movers_distance)
-
-        metrics = dict(
-            chamfer_distance=cd,
-            earth_movers_distance=emd,
-            jensen_shannon_divergence=jsd,
-            maximum_mean_discrepancy=mmd,
-            coverage_chamfer_distance=cov_cd,
-            coverage_earth_movers_distance=cov_emd,
-            minimum_matching_distance_chamfer_distance=mmd_cd,
-            minimum_matching_distance_earth_movers_distance=mmd_emd,
-            nearest_neighbor_distance_chamfer_distance=nnd_cd,
-            nearest_neighbor_distance_earth_movers_distance=nnd_emd,
         )
 
         return metrics
