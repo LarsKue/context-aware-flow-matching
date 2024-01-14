@@ -11,6 +11,9 @@ class CheckpointedSequential(nn.Sequential):
         self.register_buffer("segments", torch.tensor(segments, dtype=torch.int64))
 
     def forward(self, x):
+        if not self.training:
+            return super().forward(x)
+        
         return checkpoint_sequential(self, self.segments.item(), x, use_reentrant=False)
 
     @classmethod
