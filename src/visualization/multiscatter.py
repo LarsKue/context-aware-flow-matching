@@ -38,8 +38,8 @@ def multiscatter_bp(samples: np.ndarray, layout: (int, int) = None, **render_kwa
 
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(4 * ncols, 4 * nrows))
 
-    for ax in tqdm(axes.flat):
-        scatter_bp(samples, ax=ax, **render_kwargs)
+    for i, ax in tqdm(enumerate(axes.flat), desc="Rendering", total=batch_size):
+        scatter_bp(samples[i], ax=ax, **render_kwargs)
 
     plt.subplots_adjust(left=0.0, right=1.0, bottom=0.0, top=1.0, wspace=0.0, hspace=0.0)
 
