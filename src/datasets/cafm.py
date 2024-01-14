@@ -33,7 +33,7 @@ class ContextAwareFlowMatchingDataset(Dataset):
         subset = torch.randperm(set_size)[:self.subset_size]
         ssn0, ssn1 = sn0[subset], sn1[subset]
 
-        ssn0, ssn1 = optimal_transport(ssn0, ssn1, epsilon=0.25, max_steps=250, atol=1e-3)
+        ssn0, ssn1 = optimal_transport(ssn0, ssn1, epsilon=0.1, max_steps=500, atol=1e-4)
 
         t = torch.rand(self.subset_size, 1)
 
