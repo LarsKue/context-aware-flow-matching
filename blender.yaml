@@ -2,10 +2,11 @@ name: blender
 channels:
   - pytorch
   - nvidia
+  - conda-forge
   - defaults
 dependencies:
-  - _libgcc_mutex=0.1=main
-  - _openmp_mutex=5.1=1_gnu
+  - _libgcc_mutex=0.1=conda_forge
+  - _openmp_mutex=4.5=2_gnu
   - anyio=3.5.0=py310h06a4308_0
   - argon2-cffi=21.3.0=pyhd3eb1b0_0
   - argon2-cffi-bindings=21.2.0=py310h7f8727e_0
@@ -102,8 +103,8 @@ dependencies:
   - libdeflate=1.17=h5eee18b_1
   - libedit=3.1.20230828=h5eee18b_0
   - libffi=3.4.4=h6a678d5_0
-  - libgcc-ng=11.2.0=h1234567_1
-  - libgomp=11.2.0=h1234567_1
+  - libgcc-ng=13.2.0=h807b86a_3
+  - libgomp=13.2.0=h807b86a_3
   - libiconv=1.16=h7f8727e_2
   - libidn2=2.3.4=h5eee18b_0
   - libjpeg-turbo=2.0.0=h9bf148f_0
@@ -154,7 +155,7 @@ dependencies:
   - numpy-base=1.26.2=py310hb5e798b_0
   - openh264=2.1.1=h4ff587b_0
   - openjpeg=2.4.0=h3ad879b_0
-  - openssl=3.0.12=h7f8727e_0
+  - openssl=3.2.0=hd590300_1
   - overrides=7.4.0=py310h06a4308_0
   - packaging=23.1=py310h06a4308_0
   - pandas=2.1.4=py310h1128e8f_0
@@ -219,6 +220,7 @@ dependencies:
   - torchvision=0.16.2=py310_cu121
   - tornado=6.3.3=py310h5eee18b_0
   - traitlets=5.7.1=py310h06a4308_0
+  - trimesh=4.0.9=pyhd8ed1ab_0
   - typing-extensions=4.7.1=py310h06a4308_0
   - typing_extensions=4.7.1=py310h06a4308_0
   - tzdata=2023c=h04d1e81_0
