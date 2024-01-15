@@ -91,7 +91,7 @@ class ModelNet10Dataset(Dataset):
 
         print(f"Cleaning up hierarchy...")
         # structure is now root/ModelNet10/..., remove intermediate ModelNet10 folder
-        for path in target.glob("archive/*"):
+        for path in target.glob("ModelNet10/*"):
             shutil.move(str(path), str(self.root))
 
         shutil.rmtree(str(self.root / "__MACOSX"))
