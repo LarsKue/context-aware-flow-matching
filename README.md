@@ -65,33 +65,43 @@ to train our models. Each notebook contains the hyperparameters used for trainin
 
 **Dataset:** [ModelNet10](https://3dvision.princeton.edu/projects/2014/3DShapeNets/)
 
-<div align="center">
-    <img src="docs/modelnet10/data_samples.webp" width=25% alt="ModelNet10 Dataset Samples" hspace="10">
-    <img src="docs/modelnet10/reconstructions.webp" width=25% alt="ModelNet10 Model Reconstructions" hspace="10">
-    <img src="docs/modelnet10/model_samples.webp" width=25% alt="ModelNet10 Model Samples" hspace="10">
+<div style="text-align: center;">
+    <img src="docs/modelnet10/data_samples.png" alt="ModelNet10 Dataset Samples" style="width: 49.5%;">
+    <img src="docs/modelnet10/reconstructions.png" alt="ModelNet10 Model Reconstructions" style="width: 49.5%;">
 </div>
-<div align="center">
-    Left: Samples from the dataset. Middle: Model Reconstructions. Right: Random samples from the trained model.
+<div style="text-align: center; margin-bottom: 1cm;">
+    Left: Samples from the dataset. Right: Model Reconstructions.
 </div>
 
-<div align="center">
-    <img src="docs/modelnet10/interpolation.webp" width=50% alt="ModelNet10 Context Interpolation">
+<img src="docs/modelnet10/model_samples.png" alt="ModelNet10 Model Samples" style="width: 100%; display: block; margin: auto;">
+<div style="text-align: center; margin-bottom: 1cm;">
+    Random samples from the trained model.
 </div>
-<div align="center">
+
+<img src="docs/modelnet10/interpolation.png" alt="ModelNet10 Context Interpolation" style="width: 100%; display: block; margin: auto;">
+<div style="text-align: center; margin-bottom: 1cm;">
     Linear interpolation between randomly sampled contextual embeddings.
 </div>
 
-<div align="center">
-    <img src="docs/modelnet10/rotation.webp" width=50% alt="ModelNet10 Rotation">
+<video loop autoplay style="width: 75%; display: block; margin: auto;">
+    <source src="docs/modelnet10/transition.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+</video>
+<div style="text-align: center; margin-bottom: 1cm;">
+    Transition between the data and latent space.
 </div>
-<div align="center">
+
+
+<video loop autoplay style="width: 75%; display: block; margin: auto;">
+    <source src="docs/modelnet10/rotation.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+</video>
+<div style="text-align: center; margin-bottom: 1cm;">
     Rotating points in the latent space of the flow helps visualize the shape manifold.
 </div>
 
-<div align="center">
-    <img src="docs/modelnet10/metrics.webp" alt="ModelNet10 Evaluation Metrics">
-</div>
-<div align="center">
+<img src="docs/modelnet10/metrics.png" alt="ModelNet10 Evaluation Metrics" style="width: 50%; display: block; margin: auto;">
+<div style="text-align: center; margin-bottom: 1cm;">
     Evaluation metrics on the test set. The model is competitive with other state-of-the-art approaches.
 </div>
 
